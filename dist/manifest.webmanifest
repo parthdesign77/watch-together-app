@@ -1,0 +1,16 @@
+{
+  "name": "Watch Together",
+  "short_name": "Watch Together",
+  "description": "Premium realtime synchronized watch rooms with voice, chat, and screen sharing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030303",
+  "theme_color": "#030303",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
