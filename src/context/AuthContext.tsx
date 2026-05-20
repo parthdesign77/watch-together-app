@@ -2,9 +2,11 @@ import {
   User,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
-  signOut
+  signOut,
+  updateProfile
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
@@ -12,25 +14,63 @@ import { auth, db, googleProvider } from "../lib/firebase";
 import { hasPremiumAccess, premiumAccessWindow } from "../lib/premiumAccess";
 import type { UserProfile } from "../types";
 
+/* ------------------------------------------------------------------ */
+/*  Human-readable Firebase error messages                             */
+/* ------------------------------------------------------------------ */
+const friendlyErrors: Record<string, string> = {
+  "auth/invalid-email": "That email address doesn't look right.",
+  "auth/user-disabled": "This account has been disabled. Contact support.",
+  "auth/user-not-found": "No account found with that email. Try signing up.",
+  "auth/wrong-password": "Incorrect password. Try again or reset it.",
+  "auth/invalid-credential": "Incorrect email or password. Try again or reset it.",
+  "auth/email-already-in-use": "An account with that email already exists. Try logging in.",
+  "auth/weak-password": "Password must be at least 6 characters.",
+  "auth/too-many-requests": "Too many attempts. Please wait a moment and try again.",
+  "auth/popup-closed-by-user": "The Google sign-in popup was closed. Try again.",
+  "auth/popup-blocked": "Your browser blocked the sign-in popup. Allow popups for this site and try again.",
+  "auth/cancelled-popup-request": "Sign-in was cancelled. Please try again.",
+  "auth/network-request-failed": "Network error. Check your internet connection.",
+  "auth/operation-not-allowed": "This sign-in method is not enabled. Check Firebase Console → Authentication → Sign-in method.",
+  "auth/internal-error": "Something went wrong on our end. Please try again."
+};
+
+export function getFriendlyAuthError(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = (error as { code: string }).code;
+    return friendlyErrors[code] || `Authentication error (${code}). Please try again.`;
+  }
+  if (error instanceof Error) return error.message;
+  return "An unexpected error occurred. Please try again.";
+}
+
+/* ------------------------------------------------------------------ */
+/*  Context shape                                                      */
+/* ------------------------------------------------------------------ */
 interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  error: string | null;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (name: string, email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 const avatarColors = ["#DC2626", "#EF4444", "#991B1B", "#7F1D1D", "#F43F5E"];
 
 function colorFor(uid: string) {
   return avatarColors[uid.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) % avatarColors.length];
 }
 
-async function ensureProfile(firebaseUser: User, fallbackName?: string) {
+async function ensureProfile(firebaseUser: User, fallbackName?: string): Promise<UserProfile> {
   const ref = doc(db, "users", firebaseUser.uid);
   const snapshot = await getDoc(ref);
   const now = Date.now();
@@ -131,20 +171,47 @@ async function ensureProfile(firebaseUser: User, fallbackName?: string) {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/*  Provider                                                           */
+/* ------------------------------------------------------------------ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        setProfile(await ensureProfile(currentUser));
-      } else {
-        setProfile(null);
+      try {
+        setUser(currentUser);
+        if (currentUser) {
+          try {
+            setProfile(await ensureProfile(currentUser));
+          } catch (profileError) {
+            // Auth succeeded but Firestore profile failed — degrade gracefully
+            console.warn("[Watch Together] Could not load/create user profile:", profileError);
+            setProfile({
+              uid: currentUser.uid,
+              name: currentUser.displayName || currentUser.email?.split("@")[0] || "User",
+              email: currentUser.email || "",
+              avatar: currentUser.photoURL || "",
+              avatarColor: colorFor(currentUser.uid),
+              watchlist: [],
+              recentRooms: [],
+              viewingHistory: [],
+              subscriptionPlan: "free",
+              subscriptionStatus: "inactive",
+              paymentProvider: "demo",
+              premiumBadge: false,
+              createdAt: Date.now()
+            });
+          }
+        } else {
+          setProfile(null);
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
   }, []);
 
@@ -153,41 +220,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       loading,
+      error,
+      clearError: () => setError(null),
+
       signInWithGoogle: async () => {
         setLoading(true);
+        setError(null);
         try {
           const result = await signInWithPopup(auth, googleProvider);
           setUser(result.user);
           setProfile(await ensureProfile(result.user));
+        } catch (err) {
+          const msg = getFriendlyAuthError(err);
+          setError(msg);
+          throw new Error(msg);
         } finally {
           setLoading(false);
         }
       },
+
       signInWithEmail: async (email, password) => {
         setLoading(true);
+        setError(null);
         try {
           const result = await signInWithEmailAndPassword(auth, email, password);
           setUser(result.user);
           setProfile(await ensureProfile(result.user));
+        } catch (err) {
+          const msg = getFriendlyAuthError(err);
+          setError(msg);
+          throw new Error(msg);
         } finally {
           setLoading(false);
         }
       },
+
       signUpWithEmail: async (name, email, password) => {
         setLoading(true);
+        setError(null);
         try {
           const result = await createUserWithEmailAndPassword(auth, email, password);
+
+          // Persist the display name on the Firebase Auth user
+          await updateProfile(result.user, { displayName: name });
+
           setUser(result.user);
           setProfile(await ensureProfile(result.user, name));
+        } catch (err) {
+          const msg = getFriendlyAuthError(err);
+          setError(msg);
+          throw new Error(msg);
         } finally {
           setLoading(false);
         }
       },
+
+      resetPassword: async (email: string) => {
+        setError(null);
+        try {
+          await sendPasswordResetEmail(auth, email);
+        } catch (err) {
+          const msg = getFriendlyAuthError(err);
+          setError(msg);
+          throw new Error(msg);
+        }
+      },
+
       logout: async () => {
         await signOut(auth);
+        setUser(null);
+        setProfile(null);
       }
     }),
-    [loading, profile, user]
+    [loading, profile, user, error]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,34 +1,42 @@
 import { FormEvent, useState } from "react";
-import { Chrome, Loader2, Mail, MonitorPlay } from "lucide-react";
+import { Chrome, KeyRound, Loader2, Mail, MonitorPlay } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { useAuth } from "../context/AuthContext";
 import { useUiStore } from "../store/uiStore";
 
 export function LoginPage() {
-  const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const { user, loading, error: authError, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, clearError } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const pushToast = useUiStore((state) => state.pushToast);
   const redirectTo = (location.state as { from?: { pathname: string } } | null)?.from?.pathname || "/dashboard";
 
+  // Already logged in — redirect
   if (user) return <Navigate to={redirectTo} replace />;
 
+  const displayError = localError || authError;
+
   async function finish(action: () => Promise<void>) {
+    setLocalError(null);
+    clearError();
+    setSubmitting(true);
     try {
       await action();
       pushToast({ title: "Welcome to Watch Together", description: "Your session is ready.", type: "success" });
       navigate(redirectTo, { replace: true });
-    } catch (error) {
-      pushToast({
-        title: "Sign-in failed",
-        description: error instanceof Error ? error.message : "Please check your Firebase auth settings.",
-        type: "error"
-      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setLocalError(msg);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -37,8 +45,27 @@ export function LoginPage() {
     void finish(() => (mode === "signup" ? signUpWithEmail(name, email, password) : signInWithEmail(email, password)));
   }
 
+  async function handleForgotPassword() {
+    if (!email) {
+      setLocalError("Enter your email address above, then click Forgot Password.");
+      return;
+    }
+    setLocalError(null);
+    clearError();
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+      pushToast({ title: "Password reset sent", description: `Check ${email} for a reset link.`, type: "success" });
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Could not send reset email.");
+    }
+  }
+
+  const isDisabled = loading || submitting;
+
   return (
     <div className="grid min-h-screen bg-cinema-radial text-snow lg:grid-cols-[1.15fr_.85fr]">
+      {/* ---------- Left hero panel ---------- */}
       <section className="relative hidden overflow-hidden lg:block">
         <img src="https://image.tmdb.org/t/p/original/s3TBrRGB1iav7gFOCNx3H31MoES.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/76 to-transparent" />
@@ -54,6 +81,7 @@ export function LoginPage() {
         </div>
       </section>
 
+      {/* ---------- Right auth panel ---------- */}
       <section className="flex items-center justify-center px-4 py-10">
         <div className="glass cinema-border w-full max-w-md rounded-lg p-6">
           <Link to="/" className="mb-8 flex items-center gap-3 lg:hidden">
@@ -66,8 +94,16 @@ export function LoginPage() {
           <h2 className="font-display text-3xl font-black">{mode === "login" ? "Welcome back" : "Create your room profile"}</h2>
           <p className="mt-2 text-sm text-muted">Sign in to sync playback, voice, rooms, and watchlists with Firebase.</p>
 
-          <Button className="mt-6 w-full" onClick={() => finish(signInWithGoogle)} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Chrome className="h-4 w-4" />}
+          {/* ---------- Error banner ---------- */}
+          {displayError && (
+            <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              <p>{displayError}</p>
+            </div>
+          )}
+
+          {/* ---------- Google ---------- */}
+          <Button id="google-sign-in" className="mt-6 w-full" onClick={() => finish(signInWithGoogle)} disabled={isDisabled}>
+            {isDisabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Chrome className="h-4 w-4" />}
             Continue with Google
           </Button>
 
@@ -77,25 +113,31 @@ export function LoginPage() {
             <span className="h-px flex-1 bg-white/10" />
           </div>
 
+          {/* ---------- Email form ---------- */}
           <form onSubmit={onSubmit} className="space-y-3">
             {mode === "signup" ? (
               <input
+                id="signup-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Display name"
                 className="h-12 w-full rounded-lg border border-white/10 bg-white/8 px-4 text-sm outline-none focus:border-cyan"
                 required
+                disabled={isDisabled}
               />
             ) : null}
             <input
+              id="auth-email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Email"
               type="email"
               className="h-12 w-full rounded-lg border border-white/10 bg-white/8 px-4 text-sm outline-none focus:border-cyan"
               required
+              disabled={isDisabled}
             />
             <input
+              id="auth-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Password"
@@ -103,14 +145,39 @@ export function LoginPage() {
               minLength={6}
               className="h-12 w-full rounded-lg border border-white/10 bg-white/8 px-4 text-sm outline-none focus:border-cyan"
               required
+              disabled={isDisabled}
             />
-            <Button type="submit" className="w-full" disabled={loading}>
-              <Mail className="h-4 w-4" />
+            <Button id="email-submit" type="submit" className="w-full" disabled={isDisabled}>
+              {isDisabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               {mode === "login" ? "Login with email" : "Create account"}
             </Button>
           </form>
 
-          <button className="mt-5 text-sm font-semibold text-cyan hover:text-white" onClick={() => setMode(mode === "login" ? "signup" : "login")}>
+          {/* ---------- Forgot password (login mode) ---------- */}
+          {mode === "login" && (
+            <button
+              id="forgot-password"
+              type="button"
+              className="mt-3 flex items-center gap-1.5 text-sm text-muted transition hover:text-cyan"
+              onClick={handleForgotPassword}
+              disabled={isDisabled}
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              {resetSent ? "Reset email sent — check your inbox" : "Forgot password?"}
+            </button>
+          )}
+
+          {/* ---------- Toggle login / signup ---------- */}
+          <button
+            id="toggle-auth-mode"
+            className="mt-5 text-sm font-semibold text-cyan hover:text-white"
+            onClick={() => {
+              setMode(mode === "login" ? "signup" : "login");
+              setLocalError(null);
+              clearError();
+              setResetSent(false);
+            }}
+          >
             {mode === "login" ? "Need an account? Sign up" : "Already have an account? Login"}
           </button>
         </div>
