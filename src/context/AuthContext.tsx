@@ -6,7 +6,9 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
-  updateProfile
+  updateProfile,
+  signInWithRedirect,
+  getRedirectResult
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
@@ -31,6 +33,7 @@ const friendlyErrors: Record<string, string> = {
   "auth/cancelled-popup-request": "Sign-in was cancelled. Please try again.",
   "auth/network-request-failed": "Network error. Check your internet connection.",
   "auth/operation-not-allowed": "This sign-in method is not enabled. Check Firebase Console → Authentication → Sign-in method.",
+  "auth/unauthorized-domain": "This domain is not authorized for sign-in. Add it to Firebase Console → Authentication → Settings → Authorized domains.",
   "auth/internal-error": "Something went wrong on our end. Please try again."
 };
 
@@ -215,6 +218,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Handle redirect result (when signInWithRedirect is used as fallback)
+  useEffect(() => {
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          console.log("[Watch Together] Redirect sign-in succeeded:", result.user.email);
+          setUser(result.user);
+          setProfile(await ensureProfile(result.user));
+        }
+      })
+      .catch((err) => {
+        console.error("[Watch Together] Redirect sign-in failed:", err);
+        const msg = getFriendlyAuthError(err);
+        setError(msg);
+      });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -227,10 +247,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(true);
         setError(null);
         try {
+          console.log("[Watch Together] Starting Google sign-in popup…");
           const result = await signInWithPopup(auth, googleProvider);
+          console.log("[Watch Together] Google sign-in succeeded:", result.user.email);
           setUser(result.user);
           setProfile(await ensureProfile(result.user));
-        } catch (err) {
+        } catch (err: unknown) {
+          console.error("[Watch Together] Google sign-in popup FAILED:", err);
+          const code = err && typeof err === "object" && "code" in err ? (err as { code: string }).code : "";
+          console.error("[Watch Together] Error code:", code);
+
+          // If popup fails due to unauthorized-domain or popup issues, try redirect
+          if (code === "auth/unauthorized-domain" || code === "auth/popup-blocked") {
+            console.log("[Watch Together] Falling back to redirect sign-in…");
+            try {
+              await signInWithRedirect(auth, googleProvider);
+              return; // redirect will navigate away
+            } catch (redirectErr) {
+              console.error("[Watch Together] Redirect sign-in also failed:", redirectErr);
+            }
+          }
+
           const msg = getFriendlyAuthError(err);
           setError(msg);
           throw new Error(msg);
