@@ -56,8 +56,6 @@ export async function createWatchRoom(
     roomName: content ? `${content.title} Watch Party` : `${profile.name}'s Watch Room`,
     videoUrl: videoUrl || content?.trailerUrl || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
     contentType: content?.type || "hls",
-    contentId: content?.id,
-    episode: content?.type === "anime" ? "Episode 1" : undefined,
     currentTime: 0,
     isPlaying: false,
     isScreenSharing: false,
@@ -72,7 +70,9 @@ export async function createWatchRoom(
     theaterMode: false,
     createdAt: now,
     updatedAt: now,
-    expiresAt: now + ROOM_TTL_MS
+    expiresAt: now + ROOM_TTL_MS,
+    ...(content?.id ? { contentId: content.id } : {}),
+    ...(content?.type === "anime" ? { episode: "Episode 1" } : {})
   };
 
   const ref = await addDoc(collection(db, "rooms"), {
