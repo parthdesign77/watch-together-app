@@ -147,7 +147,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
           ? `relative w-full overflow-hidden rounded-[24px] border border-white/5 bg-[#090909] shadow-2xl transition-all duration-300 ${
               room.theaterMode ? "min-h-[75vh]" : "aspect-video"
             }`
-          : "relative w-full flex items-center justify-center transition-all duration-300"
+          : "relative w-full min-h-[50vh] flex items-center justify-center py-12 transition-all duration-300"
       }
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -158,7 +158,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
         <StreamVideo stream={activeScreenStream} muted={true} className="h-full w-full object-contain" />
       ) : (!room.videoUrl || room.status === "waiting" || room.status === "ended") ? (
         <div className="w-full flex items-center justify-center py-4">
-          <div className="flex flex-wrap gap-6 items-center justify-center max-w-full mx-auto">
+          <div className="flex flex-wrap gap-6 items-center justify-center w-full max-w-full mx-auto">
             {participants.map((p) => {
               const feed = cameraFeeds.find((f) => f.id.startsWith(p.uid));
               const isSpeaking = p.isSpeaking;
@@ -172,7 +172,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                   }}
                   className={`relative flex flex-col items-center justify-center rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-500 ease-out ${
                     feed
-                      ? "aspect-video w-full max-w-[320px] sm:max-w-[400px] md:max-w-[480px]"
+                      ? "aspect-video w-[320px] sm:w-[400px] md:w-[480px]"
                       : "aspect-square w-[200px] sm:w-[260px] md:w-[300px]"
                   } ${
                     isSpeaking 

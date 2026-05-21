@@ -10,8 +10,13 @@ export function StreamVideo({ stream, muted = false, className = "" }: StreamVid
   const ref = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    if (ref.current && stream) {
+    if (ref.current) {
       ref.current.srcObject = stream;
+      if (stream) {
+        ref.current.play().catch((err) => {
+          console.warn("StreamVideo autoplay failed or was interrupted:", err);
+        });
+      }
     }
   }, [stream]);
 
