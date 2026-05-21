@@ -152,22 +152,29 @@ export function BillingPage() {
           </div>
         </section>
 
-        <section className="glass rounded-lg p-5">
-          <h2 className="font-display text-xl font-bold">Invoices</h2>
-          <div className="mt-4 space-y-3">
-            {[0, 1, 2].map((index) => (
-              <div key={index} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/8 p-3">
+        {activePlan !== "free" && (
+          <section className="glass rounded-lg p-5">
+            <h2 className="font-display text-xl font-bold">Invoices</h2>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/8 p-3.5">
                 <div>
-                  <p className="text-sm font-bold text-snow">Invoice #{202605 - index}</p>
-                  <p className="text-xs text-muted">{index + 1} month ago</p>
+                  <p className="text-sm font-bold text-snow">
+                    Invoice #{subscription?.id ? subscription.id.slice(0, 8).toUpperCase() : "WT" + Date.now().toString().slice(-6)}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {activePlan === "premium" ? "Premium Plan (₹700)" : "Standard Plan (₹200)"} • Paid via {profile?.paymentProvider || subscription?.paymentProvider || "razorpay"}
+                  </p>
+                  <p className="text-[10px] text-muted-more mt-0.5 opacity-60">
+                    {subscription?.startedAt ? new Date(subscription.startedAt).toLocaleDateString(undefined, { dateStyle: 'medium' }) : "Active Now"}
+                  </p>
                 </div>
                 <Button variant="ghost" size="icon" aria-label="Download invoice">
                   <Download className="h-4 w-4" />
                 </Button>
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Plans Section */}
