@@ -61,6 +61,21 @@ export function LoginPage() {
     }
   }
 
+  async function handleDemoLogin() {
+    await finish(async () => {
+      const demoEmail = "demo@watchtogether.app";
+      const demoPassword = "demoPassword123";
+      try {
+        console.log("[Watch Together] Attempting demo sign in…");
+        await signInWithEmail(demoEmail, demoPassword);
+      } catch (err: any) {
+        console.log("[Watch Together] Demo sign in failed (normal if account doesn't exist yet), attempting registration…");
+        // If it's a new database/project, create the demo account first
+        await signUpWithEmail("Cinema Guest", demoEmail, demoPassword);
+      }
+    });
+  }
+
   const isDisabled = loading || submitting;
 
   return (
@@ -98,6 +113,20 @@ export function LoginPage() {
           {displayError && (
             <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
               <p>{displayError}</p>
+              {displayError.includes("auth/unauthorized-domain") && (
+                <div className="mt-2.5 border-t border-red-500/20 pt-2.5 text-xs leading-relaxed text-red-400 space-y-1.5">
+                  <p>
+                    <strong>Why this happens:</strong> Google OAuth requires you to explicitly authorize the domain you are using. Currently, you are accessing the app from <code className="bg-black/30 px-1 py-0.5 rounded font-mono text-[11px] text-white">{window.location.origin}</code>.
+                  </p>
+                  <p>
+                    <strong>How to fix:</strong>
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>Try using <a href="http://localhost:5173" className="underline text-cyan hover:text-white font-semibold">http://localhost:5173</a> (which Firebase authorizes by default).</li>
+                    <li>Or go to <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="underline text-cyan hover:text-white font-semibold">Firebase Console</a> &rarr; <strong>Authentication</strong> &rarr; <strong>Settings</strong> &rarr; <strong>Authorized domains</strong> and add <code className="bg-black/30 px-1.5 py-0.5 rounded font-mono text-[11px] text-white">{window.location.hostname}</code>.</li>
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 
@@ -106,6 +135,20 @@ export function LoginPage() {
             {isDisabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Chrome className="h-4 w-4" />}
             Continue with Google
           </Button>
+
+          {/* ---------- Demo Mode Option ---------- */}
+          <div className="mt-3">
+            <Button
+              id="demo-login"
+              variant="secondary"
+              className="w-full border-cyan/30 hover:border-cyan/70 hover:bg-cyan/10 text-cyan-400 hover:text-cyan"
+              onClick={handleDemoLogin}
+              disabled={isDisabled}
+            >
+              {isDisabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <MonitorPlay className="h-4 w-4" />}
+              Instant Demo Access (Bypass OAuth)
+            </Button>
+          </div>
 
           <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-muted">
             <span className="h-px flex-1 bg-white/10" />
