@@ -61,20 +61,6 @@ export function LoginPage() {
     }
   }
 
-  async function handleDemoLogin() {
-    await finish(async () => {
-      const demoEmail = "demo@watchtogether.app";
-      const demoPassword = "demoPassword123";
-      try {
-        console.log("[Watch Together] Attempting demo sign in…");
-        await signInWithEmail(demoEmail, demoPassword);
-      } catch (err: any) {
-        console.log("[Watch Together] Demo sign in failed (normal if account doesn't exist yet), attempting registration…");
-        // If it's a new database/project, create the demo account first
-        await signUpWithEmail("Cinema Guest", demoEmail, demoPassword);
-      }
-    });
-  }
 
   const isDisabled = loading || submitting;
 
@@ -136,19 +122,6 @@ export function LoginPage() {
             Continue with Google
           </Button>
 
-          {/* ---------- Demo Mode Option ---------- */}
-          <div className="mt-3">
-            <Button
-              id="demo-login"
-              variant="secondary"
-              className="w-full border-cyan/30 hover:border-cyan/70 hover:bg-cyan/10 text-cyan-400 hover:text-cyan"
-              onClick={handleDemoLogin}
-              disabled={isDisabled}
-            >
-              {isDisabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <MonitorPlay className="h-4 w-4" />}
-              Instant Demo Access (Bypass OAuth)
-            </Button>
-          </div>
 
           <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-muted">
             <span className="h-px flex-1 bg-white/10" />
