@@ -23,7 +23,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-cinema-radial text-snow">
       <header className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-ink/62 backdrop-blur-2xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+        <div className="flex h-16 w-full items-center justify-between px-6 md:px-12">
           <Link to="/" className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-cyan via-premium to-movie">
               <MonitorPlay className="h-5 w-5" />
@@ -44,7 +44,7 @@ export function LandingPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 pb-20 pt-20">
+      <main className="w-full px-6 md:px-12 pb-20 pt-20">
         <HeroShowcase item={movieSeeds[0]} />
 
         <section id="features" className="grid gap-4 py-16 md:grid-cols-2 lg:grid-cols-4">
