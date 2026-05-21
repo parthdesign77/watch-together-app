@@ -76,6 +76,22 @@ button:disabled {
   border: 1px solid var(--stroke);
   backdrop-filter: blur(24px);
   box-shadow: 0 20px 80px rgba(0, 0, 0, 0.26);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass:hover {
+  border-color: rgba(239, 68, 68, 0.38);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.38), 0 0 20px rgba(239, 68, 68, 0.12);
+  transform: translateY(-3px);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
 
 .cinema-border {
