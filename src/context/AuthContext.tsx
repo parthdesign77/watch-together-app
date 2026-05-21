@@ -10,7 +10,7 @@ import {
   signInWithRedirect,
   getRedirectResult
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { auth, db, googleProvider } from "../lib/firebase";
 import { hasPremiumAccess, premiumAccessWindow } from "../lib/premiumAccess";
@@ -184,14 +184,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (currentUser) => {
+    let unsubscribeProfile: (() => void) | undefined;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       try {
         setUser(currentUser);
         if (currentUser) {
           try {
-            setProfile(await ensureProfile(currentUser));
+            await ensureProfile(currentUser);
+            // Real-time synchronization of the user profile document
+            unsubscribeProfile = onSnapshot(doc(db, "users", currentUser.uid), (snapshot) => {
+              if (snapshot.exists()) {
+                setProfile({ uid: currentUser.uid, ...snapshot.data() } as UserProfile);
+              }
+            });
           } catch (profileError) {
-            // Auth succeeded but Firestore profile failed — degrade gracefully
             console.warn("[Watch Together] Could not load/create user profile:", profileError);
             setProfile({
               uid: currentUser.uid,
@@ -211,11 +218,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } else {
           setProfile(null);
+          if (unsubscribeProfile) {
+            unsubscribeProfile();
+            unsubscribeProfile = undefined;
+          }
         }
       } finally {
         setLoading(false);
       }
     });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   // Handle redirect result (when signInWithRedirect is used as fallback)
@@ -235,10 +251,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
+  const profileWithPremiumOverride = useMemo(() => {
+    if (!profile) return null;
+    const isPremium = hasPremiumAccess(profile.email);
+    if (isPremium) {
+      return {
+        ...profile,
+        subscriptionPlan: "premium" as const,
+        subscriptionStatus: "active" as const,
+        premiumBadge: true
+      };
+    }
+    return profile;
+  }, [profile]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      profile,
+      profile: profileWithPremiumOverride,
       loading,
       error,
       clearError: () => setError(null),
@@ -329,7 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null);
       }
     }),
-    [loading, profile, user, error]
+    [loading, profileWithPremiumOverride, user, error]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

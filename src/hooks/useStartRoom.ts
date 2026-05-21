@@ -15,6 +15,17 @@ export function useStartRoom() {
       return;
     }
 
+    // Restrict room hosting to Premium subscribers
+    if (profile.subscriptionPlan !== "premium") {
+      pushToast({
+        title: "Premium Feature Required",
+        description: "Only Premium members can host watch rooms. Free accounts are welcome to join existing rooms!",
+        type: "info"
+      });
+      navigate("/billing");
+      return;
+    }
+
     try {
       const room = await createWatchRoom(profile, content, videoUrl, roomType);
       pushToast({ title: "Room created", description: `${room.roomName} is ready.`, type: "success" });

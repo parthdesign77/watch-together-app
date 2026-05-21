@@ -24,9 +24,7 @@ service cloud.firestore {
     }
 
     match /rooms/{roomId} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.hostId == request.auth.uid;
-      allow update: if signedIn();
+      allow read, create, update: if signedIn();
       allow delete: if signedIn() && resource.data.hostId == request.auth.uid;
 
       match /messages/{messageId} {
