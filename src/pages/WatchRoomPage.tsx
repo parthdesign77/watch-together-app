@@ -400,18 +400,14 @@ export function WatchRoomPage() {
 
           {/* Core Media Display */}
           <div className="flex-1 flex items-center justify-center">
-            {cameraOnlyMode ? (
-              <CameraStage feeds={cameraFeeds} screenShareActive={false} />
-            ) : (
-              <VideoStage
-                room={room}
-                isHost={isHost}
-                screenStream={webRTC.screenStream}
-                remoteScreenStream={remoteScreenStream}
-                cameraFeeds={cameraFeeds}
-                participants={participants}
-              />
-            )}
+            <VideoStage
+              room={room}
+              isHost={isHost}
+              screenStream={webRTC.screenStream}
+              remoteScreenStream={remoteScreenStream}
+              cameraFeeds={cameraFeeds}
+              participants={participants}
+            />
           </div>
 
           {/* Info cards (Hidden in Cinema Mode to yield massive theater canvas) */}

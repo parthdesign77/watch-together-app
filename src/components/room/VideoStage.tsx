@@ -193,17 +193,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
 
       {activeScreenStream ? (
         <StreamVideo stream={activeScreenStream} muted={Boolean(screenStream)} className="h-full w-full object-contain" />
-      ) : !hasVideo ? (
-        <div className="h-full w-full flex items-center justify-center p-6 bg-gradient-to-br from-[#070708] to-[#121215] overflow-y-auto">
-          <div className={`grid w-full h-full gap-5 p-2 items-center justify-center ${
-            participants.length <= 1
-              ? "max-w-[480px] grid-cols-1 mx-auto"
-              : participants.length === 2
-              ? "grid-cols-1 md:grid-cols-2 max-w-[840px] mx-auto"
-              : participants.length <= 4
-              ? "grid-cols-2 max-w-[960px] mx-auto"
-              : "grid-cols-2 md:grid-cols-3 max-w-[1100px] mx-auto"
-          }`}>
+      ) : (!room.videoUrl || room.status === "waiting") ? (
+        <div className="h-full w-full flex items-center justify-center p-8 bg-gradient-to-br from-[#070708] to-[#121215] overflow-y-auto">
+          <div className="flex flex-wrap gap-6 items-center justify-center max-w-full p-4 mx-auto">
             {participants.map((p) => {
               const feed = cameraFeeds.find((f) => f.id.startsWith(p.uid));
               const isSpeaking = p.isSpeaking;
@@ -211,10 +203,13 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
               return (
                 <div
                   key={p.uid}
-                  className={`relative aspect-video w-full flex flex-col items-center justify-center rounded-[28px] overflow-hidden bg-[#111111]/80 border backdrop-blur-md shadow-2xl transition-all duration-300 ${
+                  style={{
+                    background: `linear-gradient(to bottom, ${(p.avatarColor || "#ff3d47")}22, #121216)`
+                  }}
+                  className={`relative aspect-square w-[190px] sm:w-[220px] md:w-[240px] flex flex-col items-center justify-center rounded-[28px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-300 ${
                     isSpeaking 
-                      ? "border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.2)]" 
-                      : "border-white/5"
+                      ? "border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.2)] scale-[1.02]" 
+                      : "border-white/10 hover:border-white/20"
                   }`}
                 >
                   <AnimatePresence mode="wait">
@@ -225,7 +220,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                         animate={{ opacity: 1, scale: 1, rotateY: 0 }}
                         exit={{ opacity: 0, scale: 0.95, rotateY: -90 }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
-                        className="absolute inset-0 w-full h-full"
+                        className="absolute inset-0 w-full h-full rounded-[28px] overflow-hidden"
                       >
                         <StreamVideo stream={feed.stream} muted={feed.muted} className="w-full h-full object-cover" />
                       </motion.div>
@@ -239,7 +234,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                         className="flex flex-col items-center justify-center space-y-4"
                       >
                         <div
-                          className={`relative h-20 w-20 rounded-full flex items-center justify-center border-2 bg-neutral-800 text-2xl font-black text-white transition-all duration-300 ${
+                          className={`relative h-20 w-20 rounded-full flex items-center justify-center border-2 bg-neutral-900 text-2xl font-black text-white transition-all duration-300 ${
                             isSpeaking 
                               ? "border-emerald-400 ring-4 ring-emerald-500/20 scale-105" 
                               : "border-white/10"
@@ -260,19 +255,19 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                   </AnimatePresence>
 
                   {/* Name tag and microphone status */}
-                  <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-[#090909]/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/5">
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      {p.name}
+                  <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-[#090909]/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/5 max-w-[85%]">
+                    <span className="text-[11px] font-bold text-white flex items-center gap-1.5 truncate">
+                      <span className="truncate max-w-[80px]">{p.name}</span>
                       {p.isHost && (
-                        <span className="bg-[#ff3d47]/20 text-[#ff3d47] text-[10px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider border border-[#ff3d47]/30">
+                        <span className="bg-[#ff3d47]/20 text-[#ff3d47] text-[8px] px-1 py-0.2 rounded font-black uppercase tracking-wider border border-[#ff3d47]/30 flex-shrink-0">
                           Host
                         </span>
                       )}
                     </span>
                     {p.isMuted ? (
-                      <MicOff className="h-3.5 w-3.5 text-red-500" />
+                      <MicOff className="h-3 w-3 text-red-500 flex-shrink-0" />
                     ) : (
-                      <Mic className={`h-3.5 w-3.5 ${isSpeaking ? "text-emerald-400 animate-bounce" : "text-neutral-400"}`} />
+                      <Mic className={`h-3 w-3 flex-shrink-0 ${isSpeaking ? "text-emerald-400 animate-bounce" : "text-neutral-400"}`} />
                     )}
                   </div>
                 </div>
@@ -318,10 +313,10 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
         )}
       </div>
 
-      {(activeScreenStream || hasVideo) && cameraFeeds.length ? <CameraStage feeds={cameraFeeds} screenShareActive containerRef={stageRef} /> : null}
+      {(activeScreenStream || (hasVideo && room.status !== "waiting")) && cameraFeeds.length ? <CameraStage feeds={cameraFeeds} screenShareActive containerRef={stageRef} /> : null}
 
       <AnimatePresence>
-        {(hovered || !room.isPlaying) && !isYouTube(room.videoUrl) && !activeScreenStream ? (
+        {(hovered || !room.isPlaying) && !isYouTube(room.videoUrl) && !activeScreenStream && (room.videoUrl && room.status !== "waiting") ? (
           <motion.div
             className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 to-transparent p-5 z-30"
             initial={{ opacity: 0, y: 20 }}
