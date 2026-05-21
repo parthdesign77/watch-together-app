@@ -203,9 +203,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
   const startCamera = useCallback(async (plan?: string) => {
     let videoConstraints: MediaTrackConstraints = {
-      width: { ideal: 640, max: 640 },
-      height: { ideal: 480, max: 480 },
-      frameRate: { ideal: 24, max: 24 }
+      width: { ideal: 640 },
+      height: { ideal: 480 },
+      frameRate: { ideal: 24, max: 30 }
     };
 
     if (plan === "premium") {
@@ -218,14 +218,37 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       videoConstraints = {
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        frameRate: { ideal: 30, max: 30 }
+        frameRate: { ideal: 30, max: 60 }
       };
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: videoConstraints,
-      audio: false
-    });
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: false
+      });
+    } catch (err) {
+      console.warn("Camera failed with preferred constraints, retrying with flexible defaults...", err);
+      try {
+        // Retry with highly standard lenient constraints
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 30 }
+          },
+          audio: false
+        });
+      } catch (err2) {
+        console.warn("Camera failed with lenient constraints, trying fallback to any video capture...", err2);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
+    }
+
     setCameraStream(stream);
     addLocalStream(stream);
   }, [addLocalStream]);
@@ -241,9 +264,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const startScreenShare = useCallback(async (mode: "entire-screen" | "window" = "entire-screen", plan?: string) => {
     let videoConstraints: MediaTrackConstraints = {
       displaySurface: mode === "entire-screen" ? "monitor" : "window",
-      width: { ideal: 854, max: 854 },
-      height: { ideal: 480, max: 480 },
-      frameRate: { ideal: 15, max: 15 }
+      width: { ideal: 854 },
+      height: { ideal: 480 },
+      frameRate: { ideal: 15, max: 30 }
     };
 
     if (plan === "premium") {
@@ -258,7 +281,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         displaySurface: mode === "entire-screen" ? "monitor" : "window",
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        frameRate: { ideal: 30, max: 30 }
+        frameRate: { ideal: 30, max: 60 }
       };
     }
 
