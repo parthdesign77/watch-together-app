@@ -324,8 +324,14 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             await sendSignal({ type: "answer", from: uid, to: signal.from, sdp: answer });
           }
 
-          if (signal.type === "answer" && signal.sdp && !peer.currentRemoteDescription) {
-            await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+          if (signal.type === "answer" && signal.sdp) {
+            if (peer.signalingState === "have-local-offer") {
+              try {
+                await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+              } catch (err) {
+                console.error("Error setting remote description for answer:", err);
+              }
+            }
           }
 
           if (signal.type === "candidate" && signal.candidate) {
