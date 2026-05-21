@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert } from "lucide-react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff } from "lucide-react";
 import { Navigate, useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { AmbientSoundControl } from "../components/room/AmbientSoundControl";
+import { motion, AnimatePresence } from "framer-motion";
 import { CameraFeed, CameraStage } from "../components/room/CameraStage";
 import { ChatPanel } from "../components/room/ChatPanel";
 import { InviteModal } from "../components/room/InviteModal";
@@ -13,12 +13,29 @@ import { VideoStage } from "../components/room/VideoStage";
 import { QualitySelectModal } from "../components/room/QualitySelectModal";
 import { RoomSettingsModal } from "../components/room/RoomSettingsModal";
 import { MovieSelectorModal } from "../components/room/MovieSelectorModal";
+import { LeaveRoomModal } from "../components/room/LeaveRoomModal";
+import { ReadyCheckModal } from "../components/room/ReadyCheckModal";
 import { Badge } from "../components/ui/Badge";
 import { useAuth } from "../context/AuthContext";
-import { joinRoomById, updateRoomState, useParticipants, useRoom } from "../hooks/useRooms";
+import {
+  joinRoomById,
+  updateRoomState,
+  useParticipants,
+  useRoom,
+  sendRoomReaction,
+  startReadyCheck,
+  leaveRoom,
+  endRoom
+} from "../hooks/useRooms";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { useUiStore } from "../store/uiStore";
-import { playSound } from "../lib/sounds";
+import { useUISound } from "../hooks/useUISound";
+
+interface ActivityLogItem {
+  id: string;
+  text: string;
+  timestamp: number;
+}
 
 export function WatchRoomPage() {
   const { roomId } = useParams();
@@ -26,14 +43,24 @@ export function WatchRoomPage() {
   const { profile } = useAuth();
   const { room, loading } = useRoom(roomId);
   const participants = useParticipants(room);
+  
   const [inviteOpen, setInviteOpen] = useState(Boolean(params.get("code")));
   const [qualityOpen, setQualityOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  
   const [joined, setJoined] = useState(false);
+  const [cinemaMode, setCinemaMode] = useState(false);
+  const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
+  
+  const voicePrompted = useRef(false);
+  const prevRoomRef = useRef<any>(null);
   
   const navigate = useNavigate();
+  const { play } = useUISound();
   const pushToast = useUiStore((state) => state.pushToast);
+  
   const isHost = Boolean(room && profile && room.hostId === profile.uid);
   const webRTC = useWebRTC(room?.id, profile?.uid, participants);
 
@@ -63,6 +90,56 @@ export function WatchRoomPage() {
     return feeds;
   }, [profile, remoteScreenStream, room?.isScreenSharing, room?.participants, webRTC.cameraStream, webRTC.remoteStreams]);
 
+  // Prevent accidental back gestures / tab closures
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
+  // Listen for platform room actions and log events to screen
+  useEffect(() => {
+    if (!room) return;
+    const prev = prevRoomRef.current;
+    if (prev) {
+      const newLogs: string[] = [];
+      if (prev.isPlaying !== room.isPlaying) {
+        newLogs.push(room.isPlaying ? "Playback started" : "Playback paused");
+      }
+      if (prev.quality !== room.quality) {
+        newLogs.push(`Quality changed to ${room.quality}`);
+      }
+      // Participant join/leave detector
+      const prevUids = Object.keys(prev.participants || {});
+      const currUids = Object.keys(room.participants || {});
+      if (currUids.length > prevUids.length) {
+        const joinedUid = currUids.find((u) => !prevUids.includes(u));
+        const name = room.participants[joinedUid || ""]?.name || "A friend";
+        newLogs.push(`${name} joined the room`);
+        play("join");
+      } else if (currUids.length < prevUids.length) {
+        const leftUid = prevUids.find((u) => !currUids.includes(u));
+        const name = prev.participants[leftUid || ""]?.name || "A friend";
+        newLogs.push(`${name} left the room`);
+        play("leave");
+      }
+
+      if (newLogs.length > 0) {
+        newLogs.forEach((text) => {
+          const id = Math.random().toString(36).substring(2, 9);
+          setActivityLog((prevLog) => [...prevLog, { id, text, timestamp: Date.now() }]);
+          setTimeout(() => {
+            setActivityLog((prevLog) => prevLog.filter((l) => l.id !== id));
+          }, 3500);
+        });
+      }
+    }
+    prevRoomRef.current = room;
+  }, [room, play]);
+
   // Clean redirection if the room is ended by the host
   useEffect(() => {
     if (room && room.status === "ended") {
@@ -71,6 +148,7 @@ export function WatchRoomPage() {
         description: "The host has closed this watch room.",
         type: "info"
       });
+      cleanupWebRTC();
       navigate("/dashboard");
     }
   }, [room, navigate, pushToast]);
@@ -90,11 +168,13 @@ export function WatchRoomPage() {
   }, [joined, profile, pushToast, room]);
 
   useEffect(() => {
-    if (!room || !profile || !joined || webRTC.voiceStream) return;
+    if (!room || !profile || !joined || webRTC.voiceStream || voicePrompted.current) return;
+    voicePrompted.current = true;
     void webRTC.startVoice().catch(() => {
-      pushToast({ title: "Voice permission needed", description: "Use the Voice button when you are ready to connect your mic.", type: "info" });
+      // Suppress irritating recurring notifications, display single polite console info log
+      console.info("Voice connection waiting for mic button click.");
     });
-  }, [joined, profile, pushToast, room, webRTC]);
+  }, [joined, profile, room, webRTC]);
 
   // Auto-enable camera in camera-first rooms (no movie URL loaded initially)
   useEffect(() => {
@@ -107,10 +187,10 @@ export function WatchRoomPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-[70vh] place-items-center">
-        <div className="glass flex items-center gap-3 rounded-lg p-5">
-          <Loader2 className="h-5 w-5 animate-spin text-cyan" />
-          <span className="font-semibold">Connecting to room...</span>
+      <div className="grid min-h-screen place-items-center bg-[#090909]">
+        <div className="glass flex items-center gap-3 rounded-[20px] p-6 border border-white/5 bg-[#111111]">
+          <Loader2 className="h-5 w-5 animate-spin text-[#ff3d47]" />
+          <span className="font-bold text-white text-sm">Synchronizing theater feed...</span>
         </div>
       </div>
     );
@@ -118,10 +198,18 @@ export function WatchRoomPage() {
 
   if (!room) {
     return (
-      <div className="glass rounded-lg p-8">
-        <ShieldAlert className="h-10 w-10 text-danger" />
-        <h1 className="mt-4 font-display text-3xl font-black">Room expired or unavailable</h1>
-        <p className="mt-2 text-muted">Ask the host for a new invite link or create a new watch room.</p>
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#090909]">
+        <div className="glass rounded-[28px] p-8 border border-white/5 bg-[#111111] max-w-md text-center">
+          <ShieldAlert className="h-12 w-12 text-[#ff3d47] mx-auto mb-4" />
+          <h1 className="font-display text-2xl font-black text-white">Room Expired or Unavailable</h1>
+          <p className="mt-2 text-sm text-neutral-400">Ask the host for a new invite link or spin up a new private room from your dashboard.</p>
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="mt-6 bg-[#ff3d47] text-white rounded-xl h-11 px-6 font-bold hover:bg-[#ff3d47]/90 border-none transition-all"
+          >
+            Back to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -134,6 +222,25 @@ export function WatchRoomPage() {
   const screenShareActive = Boolean(webRTC.screenStream || remoteScreenStream || room.isScreenSharing);
   const cameraOnlyMode = cameraFeeds.length > 0 && !screenShareActive;
 
+  function cleanupWebRTC() {
+    try {
+      webRTC.stopCamera();
+      webRTC.stopScreenShare();
+    } catch (e) {
+      console.warn("Error cleaning up WebRTC on exit", e);
+    }
+  }
+
+  async function handleConfirmLeave() {
+    cleanupWebRTC();
+    if (isHost) {
+      await endRoom(currentRoom.id);
+    } else {
+      await leaveRoom(currentRoom.id, currentProfile.uid);
+    }
+    navigate("/dashboard");
+  }
+
   async function shareScreen(mode: "entire-screen" | "window") {
     try {
       await webRTC.startScreenShare(mode, profile?.subscriptionPlan);
@@ -144,8 +251,8 @@ export function WatchRoomPage() {
         [`participants.${currentProfile.uid}.isScreenSharing`]: true
       });
       pushToast({
-        title: mode === "entire-screen" ? "Entire screen is live" : "Window share is live",
-        description: "Friends will receive the HD stream through WebRTC.",
+        title: "Entire screen shared",
+        description: "High-quality screen stream propagating successfully.",
         type: "success"
       });
     } catch (error) {
@@ -177,106 +284,217 @@ export function WatchRoomPage() {
       await updateRoomState(currentRoom.id, {
         [`participants.${currentProfile.uid}.isCameraOn`]: true
       });
-      pushToast({ title: "Camera on", description: "Camera fills the room without screen share and becomes PiP during screen share.", type: "success" });
+      pushToast({ title: "Camera connected", description: "Your feed will float as picture-in-picture during active shares.", type: "success" });
     } catch (error) {
       pushToast({ title: "Camera unavailable", description: error instanceof Error ? error.message : "Check camera permissions.", type: "error" });
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <RoomControls
-        room={room}
-        isHost={isHost}
-        muted={webRTC.muted}
-        onInvite={() => setInviteOpen(true)}
-        onStartVoice={() =>
-          webRTC
-            .startVoice()
-            .then(() => pushToast({ title: "Voice connected", description: "Noise suppression and speaking indicators are active.", type: "success" }))
-            .catch((error) => pushToast({ title: "Voice unavailable", description: error.message, type: "error" }))
-        }
-        onToggleMute={webRTC.toggleMute}
-        onToggleCamera={toggleCamera}
-        onShareScreen={shareScreen}
-        onStopScreen={stopScreen}
-        onOpenQuality={() => setQualityOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenSelector={() => setSelectorOpen(true)}
-        hasCameraStream={Boolean(webRTC.cameraStream)}
-        hasScreenStream={Boolean(webRTC.screenStream)}
-      />
+  // Reaction Sender
+  const handleSendReaction = (emoji: string) => {
+    if (profile) {
+      void sendRoomReaction(room.id, emoji, profile.name);
+    }
+  };
 
-      <div className={`grid gap-4 ${room.theaterMode ? "xl:grid-cols-[1fr_360px]" : "xl:grid-cols-[1fr_380px]"}`}>
-        <div className="space-y-4">
-          {cameraOnlyMode ? (
-            <CameraStage feeds={cameraFeeds} screenShareActive={false} />
-          ) : (
-            <VideoStage
-              room={room}
-              isHost={isHost}
-              screenStream={webRTC.screenStream}
-              remoteScreenStream={remoteScreenStream}
-              cameraFeeds={cameraFeeds}
-            />
+  // Ready Check Trigger
+  const handleTriggerReadyCheck = () => {
+    const uids = Object.keys(room.participants || {});
+    void startReadyCheck(room.id, uids);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#090909] text-white p-5 flex flex-col gap-5 overflow-x-hidden relative">
+      
+      {/* Sliding Header Controls (Hidden when in Cinema Mode unless top-hovered) */}
+      <div
+        className={`transition-all duration-500 ease-in-out z-40 ${
+          cinemaMode
+            ? "fixed top-0 left-0 right-0 p-5 bg-[#090909]/95 backdrop-blur-lg border-b border-white/5 transform -translate-y-full hover:translate-y-0 opacity-0 hover:opacity-100 shadow-2xl"
+            : "relative w-full"
+        }`}
+      >
+        <RoomControls
+          room={room}
+          isHost={isHost}
+          muted={webRTC.muted}
+          onInvite={() => setInviteOpen(true)}
+          onStartVoice={() =>
+            webRTC
+              .startVoice()
+              .then(() => pushToast({ title: "Voice connected", description: "Speaking indicators are now active.", type: "success" }))
+              .catch((error) => pushToast({ title: "Voice unavailable", description: error.message, type: "error" }))
+          }
+          onToggleMute={webRTC.toggleMute}
+          onToggleCamera={toggleCamera}
+          onShareScreen={shareScreen}
+          onStopScreen={stopScreen}
+          onOpenQuality={() => setQualityOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSelector={() => setSelectorOpen(true)}
+          onLeaveRoom={() => setLeaveModalOpen(true)}
+          onSendReaction={handleSendReaction}
+          onTriggerReadyCheck={handleTriggerReadyCheck}
+          hasCameraStream={Boolean(webRTC.cameraStream)}
+          hasScreenStream={Boolean(webRTC.screenStream)}
+          cinemaMode={cinemaMode}
+          onToggleCinemaMode={() => setCinemaMode(!cinemaMode)}
+        />
+      </div>
+
+      {/* Main Content Area */}
+      <div className={`grid gap-5 flex-1 transition-all duration-500 ${cinemaMode ? "grid-cols-1" : "xl:grid-cols-[1fr_380px]"}`}>
+        
+        {/* Widescreen Video Stage Container */}
+        <div className="space-y-5 flex flex-col justify-center relative">
+          
+          {/* Room Synced Notification Overlay */}
+          <div className="absolute top-5 left-5 z-40 space-y-2 pointer-events-none max-w-sm">
+            <AnimatePresence>
+              {activityLog.map((log) => (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0, x: -20, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-[#111111]/90 backdrop-blur-md text-white/90 text-xs font-bold px-3.5 py-2.5 rounded-2xl border border-white/10 shadow-lg flex items-center gap-2"
+                >
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#ff3d47] animate-pulse" />
+                  <span>{log.text}</span>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* Mini Circular Participant Bubbles (Top-right corner in Cinema Mode) */}
+          {cinemaMode && room.videoUrl && (
+            <div className="absolute top-5 right-5 z-40 flex items-center gap-2 bg-[#111111]/85 backdrop-blur-md px-3.5 py-2 rounded-full border border-white/5 shadow-2xl">
+              {participants.map((p) => (
+                <button
+                  key={p.uid}
+                  onClick={() => {
+                    setCinemaMode(false);
+                    play("click");
+                  }}
+                  className={`relative h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold text-white border border-white/15 cursor-pointer hover:scale-105 transition-all duration-300 ${
+                    p.isSpeaking ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-black" : ""
+                  }`}
+                  style={{ backgroundColor: p.avatar ? undefined : (p.avatarColor || "#ff3d47") }}
+                  title={`Click to exit Cinema mode - ${p.name}`}
+                >
+                  {p.avatar ? (
+                    <img src={p.avatar} alt={p.name} className="h-full w-full rounded-full object-cover" />
+                  ) : (
+                    p.name.slice(0, 2).toUpperCase()
+                  )}
+                  {p.isMuted && (
+                    <div className="absolute -bottom-1 -right-1 bg-red-600 rounded-full p-0.5 border border-black shadow">
+                      <MicOff className="h-2.5 w-2.5 text-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
           )}
 
-          <section className="grid gap-4 md:grid-cols-3">
-            <div className="glass rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <Radio className="h-5 w-5 text-anime" />
-                <div>
-                  <p className="text-sm font-bold">Latency Engine</p>
-                  <p className="text-xs text-muted">Heartbeat sync · drift correction · adaptive buffering</p>
-                </div>
-              </div>
-            </div>
-            <div className="glass rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <MonitorUp className="h-5 w-5 text-cyan" />
-                <div>
-                  <p className="text-sm font-bold">Screen Share</p>
-                  <p className="text-xs text-muted">{room.isScreenSharing ? "HD stream receiving" : "Entire screen or window-only sharing"}</p>
-                </div>
-              </div>
-            </div>
-            <div className="glass rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <MessageSquare className="h-5 w-5 text-movie" />
-                <div>
-                  <p className="text-sm font-bold">Audio Layers</p>
-                  <p className="text-xs text-muted">Content audio · voice layer · ambient layer</p>
-                </div>
-              </div>
-            </div>
-          </section>
+          {/* Core Media Display */}
+          <div className="flex-1 flex items-center justify-center">
+            {cameraOnlyMode ? (
+              <CameraStage feeds={cameraFeeds} screenShareActive={false} />
+            ) : (
+              <VideoStage
+                room={room}
+                isHost={isHost}
+                screenStream={webRTC.screenStream}
+                remoteScreenStream={remoteScreenStream}
+                cameraFeeds={cameraFeeds}
+                participants={participants}
+              />
+            )}
+          </div>
 
-          {webRTC.screenStream ? (
-            <section className="glass rounded-lg p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-lg font-bold">Your Live Screen</h2>
-                <Badge tone="red">LIVE</Badge>
+          {/* Info cards (Hidden in Cinema Mode to yield massive theater canvas) */}
+          {!cinemaMode && (
+            <section className="grid gap-4 md:grid-cols-3">
+              <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
+                <div className="flex items-center gap-3">
+                  <Radio className="h-5 w-5 text-[#ff3d47]" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Latency Engine</p>
+                    <p className="text-xs text-neutral-400">Heartbeat sync · drift correction</p>
+                  </div>
+                </div>
               </div>
-              <StreamVideo stream={webRTC.screenStream} muted className="max-h-64 w-full rounded-lg bg-black object-contain" />
+              <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
+                <div className="flex items-center gap-3">
+                  <MonitorUp className="h-5 w-5 text-purple-400" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Screen Share</p>
+                    <p className="text-xs text-neutral-400">{room.isScreenSharing ? "HD Stream receiving" : "Entire screen sharing"}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="h-5 w-5 text-emerald-400" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Audio Channels</p>
+                    <p className="text-xs text-neutral-400">Movie audio + low latency voice</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {webRTC.screenStream && !cinemaMode ? (
+            <section className="glass rounded-[24px] p-4 bg-[#111111]/40 border border-white/5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-display text-sm font-extrabold text-white">Your Shared Screen</h2>
+                <Badge className="bg-[#ff3d47] text-white border-none font-bold uppercase tracking-wider text-[10px] px-2 py-0.5 rounded">
+                  LIVE
+                </Badge>
+              </div>
+              <StreamVideo stream={webRTC.screenStream} muted className="max-h-56 w-full rounded-[18px] bg-black object-contain border border-white/5" />
             </section>
           ) : null}
         </div>
 
-        <div className="space-y-4">
-          <ParticipantsPanel participants={participants} />
-          <AmbientSoundControl isScreenSharing={screenShareActive} />
-          <ChatPanel roomId={room.id} profile={profile} />
-        </div>
+        {/* Sidebar Panel (Hidden when Cinema Mode is active) */}
+        {!cinemaMode && (
+          <div className="space-y-4 flex flex-col w-full h-full justify-between overflow-y-auto max-h-[88vh] pr-1">
+            <ParticipantsPanel participants={participants} />
+            <ChatPanel roomId={room.id} profile={profile} />
+          </div>
+        )}
       </div>
 
       {remoteAudioStreams.map((item) => (
         <StreamAudio key={`${item.uid}-${item.id}`} stream={item.stream} />
       ))}
 
+      {/* Synchronized modals */}
       <InviteModal open={inviteOpen} room={room} onClose={() => setInviteOpen(false)} />
       <QualitySelectModal open={qualityOpen} onClose={() => setQualityOpen(false)} room={room} />
       <RoomSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} room={room} isHost={isHost} />
       <MovieSelectorModal open={selectorOpen} onClose={() => setSelectorOpen(false)} room={room} />
+      
+      {/* Leave confirmation modal */}
+      <LeaveRoomModal
+        open={leaveModalOpen}
+        onClose={() => setLeaveModalOpen(false)}
+        onConfirm={handleConfirmLeave}
+        isHost={isHost}
+      />
+
+      {/* Ready check prompt modal */}
+      <ReadyCheckModal
+        open={Boolean(room.readyCheck && room.readyCheck.active)}
+        room={room}
+        userId={profile.uid}
+        isHost={isHost}
+        participants={participants}
+      />
     </div>
   );
 }

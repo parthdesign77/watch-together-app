@@ -67,7 +67,7 @@ export async function createWatchRoom(
     code,
     hostId: profile.uid,
     roomName: content ? `${content.title} Watch Party` : `${profile.name}'s Watch Room`,
-    videoUrl: videoUrl || content?.trailerUrl || "",
+    videoUrl: videoUrl || "",
     contentType: content?.type || (videoUrl ? "mp4" : "hls"),
     currentTime: 0,
     isPlaying: false,
@@ -284,5 +284,70 @@ export async function endRoom(roomId: string) {
   await updateRoomState(roomId, {
     status: "ended",
     updatedAt: Date.now()
+  });
+}
+
+export async function sendRoomReaction(roomId: string, emoji: string, userName: string) {
+  await addDoc(collection(db, "rooms", roomId, "reactions"), {
+    emoji,
+    userName,
+    createdAt: Date.now(),
+    createdAtServer: serverTimestamp()
+  });
+}
+
+export function useRoomReactions(
+  roomId?: string,
+  onReactionTrigger?: (reaction: { emoji: string; userName: string; id: string }) => void
+) {
+  useEffect(() => {
+    if (!roomId || !onReactionTrigger) return;
+    const now = Date.now();
+    const q = query(
+      collection(db, "rooms", roomId, "reactions"),
+      orderBy("createdAt", "desc"),
+      limit(15)
+    );
+    return onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const data = change.doc.data();
+          if (data.createdAt && data.createdAt > now - 3000) {
+            onReactionTrigger({
+              id: change.doc.id,
+              emoji: data.emoji,
+              userName: data.userName || "Someone"
+            });
+          }
+        }
+      });
+    });
+  }, [roomId, onReactionTrigger]);
+}
+
+export async function startReadyCheck(roomId: string, participants: string[]) {
+  const status: Record<string, boolean> = {};
+  participants.forEach((uid) => {
+    status[uid] = false;
+  });
+
+  await updateRoomState(roomId, {
+    readyCheck: {
+      active: true,
+      status,
+      startedAt: Date.now()
+    }
+  });
+}
+
+export async function setReadyStatus(roomId: string, uid: string, isReady: boolean) {
+  await updateDoc(doc(db, "rooms", roomId), {
+    [`readyCheck.status.${uid}`]: isReady
+  });
+}
+
+export async function cancelReadyCheck(roomId: string) {
+  await updateDoc(doc(db, "rooms", roomId), {
+    readyCheck: deleteField()
   });
 }

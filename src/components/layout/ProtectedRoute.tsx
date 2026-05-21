@@ -8,10 +8,10 @@ export function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-cinema-radial text-snow">
-        <div className="glass flex items-center gap-3 rounded-lg p-5">
-          <Loader2 className="h-5 w-5 animate-spin text-cyan" />
-          <span className="font-semibold">Restoring your watch room session...</span>
+      <div className="grid min-h-screen place-items-center bg-[#090909] text-white">
+        <div className="glass flex items-center gap-3 rounded-[20px] p-5 border border-white/5 bg-[#111111]">
+          <Loader2 className="h-5 w-5 animate-spin text-[#ff3d47]" />
+          <span className="font-bold text-sm">Authenticating...</span>
         </div>
       </div>
     );

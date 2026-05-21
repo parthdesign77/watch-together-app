@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Calendar, Clock, Heart, Play, Share2, Sparkles, Star, Users } from "lucide-react";
 import { Navigate, useParams } from "react-router-dom";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { StartTogetherModal } from "../components/room/StartTogetherModal";
 import { useAuth } from "../context/AuthContext";
 import { allSeeds } from "../data/catalog";
 import { useStartRoom } from "../hooks/useStartRoom";
@@ -16,6 +18,7 @@ export function DetailPage({ type }: { type: "movie" | "anime" }) {
   const { profile } = useAuth();
   const startRoom = useStartRoom();
   const pushToast = useUiStore((state) => state.pushToast);
+  const [startOpen, setStartOpen] = useState(false);
   const movieRows = useQuery({ queryKey: ["movieRows"], queryFn: getMovieRows, enabled: type === "movie" });
   const animeRows = useQuery({ queryKey: ["animeRows"], queryFn: getAnimeRows, enabled: type === "anime" });
 
@@ -85,11 +88,11 @@ export function DetailPage({ type }: { type: "movie" | "anime" }) {
               ))}
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" onClick={() => startRoom(item)}>
+              <Button size="lg" onClick={() => setStartOpen(true)}>
                 <Play className="h-5 w-5" />
                 Start Room
               </Button>
-              <Button variant="secondary" size="lg" onClick={() => startRoom(item)}>
+              <Button variant="secondary" size="lg" onClick={() => setStartOpen(true)}>
                 <Users className="h-5 w-5" />
                 Watch Together
               </Button>
@@ -131,6 +134,8 @@ export function DetailPage({ type }: { type: "movie" | "anime" }) {
           <p className="mt-2 text-sm text-muted">The dashboard rows and search overlay reuse this title metadata for quick room creation.</p>
         </article>
       </section>
+
+      <StartTogetherModal open={startOpen} onClose={() => setStartOpen(false)} selectedContent={item} />
     </div>
   );
 }

@@ -9,13 +9,16 @@ import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
 
+import type { ContentItem } from "../../types";
+
 interface StartTogetherModalProps {
   open: boolean;
   onClose: () => void;
   defaultVideoUrl?: string;
+  selectedContent?: ContentItem | null;
 }
 
-export function StartTogetherModal({ open, onClose, defaultVideoUrl = "" }: StartTogetherModalProps) {
+export function StartTogetherModal({ open, onClose, defaultVideoUrl = "", selectedContent = null }: StartTogetherModalProps) {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const startRoom = useStartRoom();
@@ -29,12 +32,16 @@ export function StartTogetherModal({ open, onClose, defaultVideoUrl = "" }: Star
 
   useEffect(() => {
     if (open) {
-      setVideoUrl(defaultVideoUrl);
+      if (selectedContent) {
+        setVideoUrl(selectedContent.trailerUrl || "");
+      } else {
+        setVideoUrl(defaultVideoUrl);
+      }
     }
-  }, [defaultVideoUrl, open]);
+  }, [defaultVideoUrl, selectedContent, open]);
 
   async function createRoom() {
-    await startRoom(undefined, videoUrl || undefined, roomType);
+    await startRoom(selectedContent || undefined, videoUrl || undefined, roomType);
     onClose();
   }
 

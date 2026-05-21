@@ -33,14 +33,14 @@ export function App() {
       <Route path="/oauth/microsoft" element={<OAuthScreen provider="Microsoft" />} />
 
       <Route element={<ProtectedRoute />}>
+        <Route path="/room/:roomId" element={<WatchRoomPage />} />
+        <Route path="/screen-share/:roomId" element={<WatchRoomPage />} />
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/movies" element={<CatalogPage type="movie" />} />
           <Route path="/movies/:id" element={<DetailPage type="movie" />} />
           <Route path="/anime" element={<CatalogPage type="anime" />} />
           <Route path="/anime/:id" element={<DetailPage type="anime" />} />
-          <Route path="/room/:roomId" element={<WatchRoomPage />} />
-          <Route path="/screen-share/:roomId" element={<WatchRoomPage />} />
           <Route path="/watchlist" element={<WatchlistPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />

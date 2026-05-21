@@ -63,6 +63,11 @@ export interface WatchRoom {
   createdAt: number;
   updatedAt: number;
   expiresAt: number;
+  readyCheck?: {
+    active: boolean;
+    status: Record<string, boolean>;
+    startedAt: number;
+  };
 }
 
 export interface ChatMessage {

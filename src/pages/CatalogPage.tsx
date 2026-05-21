@@ -5,14 +5,15 @@ import { ContentCard } from "../components/media/ContentCard";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Skeleton } from "../components/ui/Skeleton";
-import { useStartRoom } from "../hooks/useStartRoom";
+import { StartTogetherModal } from "../components/room/StartTogetherModal";
 import { getAnimeRows, getMovieRows } from "../services/contentService";
 import type { ContentItem } from "../types";
 
 export function CatalogPage({ type }: { type: "movie" | "anime" }) {
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState("All");
-  const startRoom = useStartRoom();
+  const [startOpen, setStartOpen] = useState(false);
+  const [selectedContent, setSelectedContent] = useState<ContentItem | null>(null);
   const movies = useQuery({ queryKey: ["movieRows"], queryFn: getMovieRows, enabled: type === "movie" });
   const anime = useQuery({ queryKey: ["animeRows"], queryFn: getAnimeRows, enabled: type === "anime" });
 
@@ -77,7 +78,14 @@ export function CatalogPage({ type }: { type: "movie" | "anime" }) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
           {filtered.map((item) => (
-            <ContentCard key={item.id} item={item} onStartRoom={startRoom} />
+            <ContentCard
+              key={item.id}
+              item={item}
+              onStartRoom={(content) => {
+                setSelectedContent(content);
+                setStartOpen(true);
+              }}
+            />
           ))}
         </div>
       )}
@@ -85,6 +93,14 @@ export function CatalogPage({ type }: { type: "movie" | "anime" }) {
       <div className="flex justify-center">
         <Button variant="secondary">Load more</Button>
       </div>
+
+      {selectedContent && (
+        <StartTogetherModal
+          open={startOpen}
+          onClose={() => setStartOpen(false)}
+          selectedContent={selectedContent}
+        />
+      )}
     </div>
   );
 }

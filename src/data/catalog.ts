@@ -187,6 +187,54 @@ export const animeSeeds: ContentItem[] = [
     genres: ["Romance", "Drama", "Supernatural"],
     studio: "CoMix Wave Films",
     episodes: 1
+  },
+  {
+    id: "anime-naruto",
+    sourceId: 20,
+    type: "anime",
+    title: "Naruto",
+    subtitle: "The classic tale of the gutsy ninja.",
+    overview: "Deep within the Hidden Leaf Village, Naruto Uzumaki is a mischievous ninja-in-training who dreams of becoming the Hokage, the leader of his village.",
+    poster: "https://cdn.myanimelist.net/images/anime/13/75127.jpg",
+    backdrop: "https://cdn.myanimelist.net/images/anime/13/75127l.jpg",
+    rating: 8.0,
+    year: "2002",
+    genres: ["Action", "Adventure", "Fantasy", "Shonen"],
+    studio: "Studio Pierrot",
+    episodes: 220,
+    trailerUrl: "https://www.youtube.com/watch?v=-G9BqkgX9KA"
+  },
+  {
+    id: "anime-naruto-shippuden",
+    sourceId: 1735,
+    type: "anime",
+    title: "Naruto: Shippuden",
+    subtitle: "A massive, legendary ninja saga.",
+    overview: "It has been two and a half years since Naruto Uzumaki left Konohagakure to train with Jiraiya. Now, Naruto returns to protect his friends and village from the rogue organization Akatsuki.",
+    poster: "https://cdn.myanimelist.net/images/anime/3/25161.jpg",
+    backdrop: "https://cdn.myanimelist.net/images/anime/3/25161l.jpg",
+    rating: 8.3,
+    year: "2007",
+    genres: ["Action", "Adventure", "Fantasy", "Shonen"],
+    studio: "Studio Pierrot",
+    episodes: 500,
+    trailerUrl: "https://www.youtube.com/watch?v=1Dqpi2G-C8s"
+  },
+  {
+    id: "anime-boruto",
+    sourceId: 34566,
+    type: "anime",
+    title: "Boruto: Naruto Next Generations",
+    subtitle: "The legacy continues with a new generation.",
+    overview: "Following the successful end of the Fourth Shinobi World War, Konohagakure has enjoyed a period of peace, technology, and prosperity. Boruto Uzumaki, son of Seventh Hokage Naruto, must carve out his own ninja path.",
+    poster: "https://cdn.myanimelist.net/images/anime/9/84465.jpg",
+    backdrop: "https://cdn.myanimelist.net/images/anime/9/84465l.jpg",
+    rating: 6.0,
+    year: "2017",
+    genres: ["Action", "Adventure", "Fantasy", "Shonen"],
+    studio: "Studio Pierrot",
+    episodes: 293,
+    trailerUrl: "https://www.youtube.com/watch?v=84D4cshj8uI"
   }
 ];
 
