@@ -17,6 +17,7 @@ import { useStartRoom } from "../hooks/useStartRoom";
 import { getAnimeRows, getMovieRows } from "../services/contentService";
 import type { ContentItem, WatchRoom } from "../types";
 import { useUISound } from "../hooks/useUISound";
+import { movieSeeds, animeSeeds } from "../data/catalog";
 
 export function DashboardPage() {
   const { profile } = useAuth();
@@ -35,46 +36,59 @@ export function DashboardPage() {
   const anime = useQuery({ queryKey: ["animeRows"], queryFn: getAnimeRows });
   const hero = movies.data?.trending?.[0];
 
+  const allCatalogItems = useMemo(() => {
+    const list: ContentItem[] = [];
+    if (movies.data) {
+      list.push(
+        ...(movies.data.trending || []),
+        ...(movies.data.popular || []),
+        ...(movies.data.topRated || []),
+        ...(movies.data.upcoming || [])
+      );
+    }
+    if (anime.data) {
+      list.push(
+        ...(anime.data.top || []),
+        ...(anime.data.seasonal || []),
+        ...(anime.data.airing || [])
+      );
+    }
+    list.push(...movieSeeds, ...animeSeeds);
+
+    const map = new Map<string, ContentItem>();
+    for (const item of list) {
+      if (item?.id) map.set(item.id, item);
+    }
+    return Array.from(map.values());
+  }, [movies.data, anime.data]);
+
   const continueWatching = useMemo(() => {
-    const list = [...(movies.data?.popular || []), ...(anime.data?.top || [])].slice(0, 4);
-    // Add mock progress percentages for Continue Watching items
-    const progressList = [75, 45, 90, 20];
-    return list.map((item, index) => ({
-      ...item,
-      progress: progressList[index] || 50
-    }));
-  }, [anime.data, movies.data]);
+    if (!profile?.viewingHistory || profile.viewingHistory.length === 0) {
+      return [];
+    }
+
+    const matched: any[] = [];
+    const progressList = [75, 45, 90, 20, 60, 85, 30, 95];
+    const uniqueHistoryIds = Array.from(new Set(profile.viewingHistory)).reverse();
+
+    uniqueHistoryIds.forEach((id, index) => {
+      const found = allCatalogItems.find((item) => item.id === id);
+      if (found) {
+        matched.push({
+          ...found,
+          progress: progressList[index % progressList.length] || 50
+        });
+      }
+    });
+
+    return matched;
+  }, [profile?.viewingHistory, allCatalogItems]);
 
   function handleStartRoomClick(content?: ContentItem) {
     setSelectedContent(content || null);
     setStartOpen(true);
     play("click");
   }
-
-  // Discord-style simulated friend presence
-  const mockFriendActivities = useMemo(() => [
-    {
-      name: "Rahul",
-      avatarColor: "#ff3d47",
-      status: "Watching Boruto Ep. 12",
-      roomName: "Naruto Watch Party #4",
-      action: "Join Room"
-    },
-    {
-      name: "Neha",
-      avatarColor: "#a855f7",
-      status: "Watching Naruto: Shippuden",
-      roomName: "Chillin with Anime",
-      action: "Join Room"
-    },
-    {
-      name: "Darji",
-      avatarColor: "#10b981",
-      status: "Hosting Live Screen Stream",
-      roomName: "Darji's Stream Room",
-      action: "Join Room"
-    }
-  ], []);
 
   return (
     <div className="space-y-10 text-white pb-10">
@@ -224,118 +238,137 @@ export function DashboardPage() {
       </section>
 
       {/* Gorgeous Continue Watching Slider */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Award className="h-5 w-5 text-[#ff3d47]" />
-          <h2 className="font-display text-lg font-extrabold text-white">Continue Watching</h2>
-        </div>
-        <div className="grid gap-5 grid-cols-2 md:grid-cols-4">
-          {continueWatching.map((item: any) => (
-            <div
-              key={item.id}
-              className="group relative rounded-[20px] overflow-hidden bg-[#111111] border border-white/5 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:border-[#ff3d47]/40 cursor-pointer"
-              onClick={() => handleStartRoomClick(item)}
-            >
-              {/* Cover Art */}
-              <div className="aspect-video w-full relative overflow-hidden bg-neutral-900">
-                <img
-                  src={item.backdropUrl || item.posterUrl}
-                  alt={item.title}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="bg-[#ff3d47] h-10 w-10 rounded-full flex items-center justify-center text-white shadow-lg shadow-[#ff3d47]/35 transform scale-75 group-hover:scale-100 transition-transform duration-300">
-                    <Play className="h-5 w-5 fill-current" />
+      {continueWatching.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Award className="h-5 w-5 text-[#ff3d47]" />
+            <h2 className="font-display text-lg font-extrabold text-white">Continue Watching</h2>
+          </div>
+          <div className="grid gap-5 grid-cols-2 md:grid-cols-4">
+            {continueWatching.map((item: any) => (
+              <div
+                key={item.id}
+                className="group relative rounded-[20px] overflow-hidden bg-[#111111] border border-white/5 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:border-[#ff3d47]/40 cursor-pointer"
+                onClick={() => handleStartRoomClick(item)}
+              >
+                {/* Cover Art */}
+                <div className="aspect-video w-full relative overflow-hidden bg-neutral-900">
+                  <img
+                    src={item.backdrop || item.poster}
+                    alt={item.title}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="bg-[#ff3d47] h-10 w-10 rounded-full flex items-center justify-center text-white shadow-lg shadow-[#ff3d47]/35 transform scale-75 group-hover:scale-100 transition-transform duration-300">
+                      <Play className="h-5 w-5 fill-current" />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Info & Progress */}
-              <div className="p-4 space-y-2">
-                <p className="text-sm font-bold text-white truncate">{item.title}</p>
-                <p className="text-[10px] text-neutral-400 font-medium capitalize">{item.type} · Episode {Math.floor(Math.random() * 20) + 1}</p>
-                
-                {/* Progress bar */}
-                <div className="space-y-1">
-                  <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#ff3d47] to-[#ff3d47]/85 rounded-full"
-                      style={{ width: `${item.progress}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-[9px] text-neutral-500 font-bold font-mono">
-                    <span>{item.progress}% WATCHED</span>
-                    <span>RESUME PLAY</span>
+                {/* Info & Progress */}
+                <div className="p-4 space-y-2">
+                  <p className="text-sm font-bold text-white truncate">{item.title}</p>
+                  <p className="text-[10px] text-neutral-400 font-medium capitalize">{item.type} · Episode {Math.floor(Math.random() * 20) + 1}</p>
+                  
+                  {/* Progress bar */}
+                  <div className="space-y-1">
+                    <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#ff3d47] to-[#ff3d47]/85 rounded-full"
+                        style={{ width: `${item.progress}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[9px] text-neutral-500 font-bold font-mono">
+                      <span>{item.progress}% WATCHED</span>
+                      <span>RESUME PLAY</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {movies.data ? <ContentRail title="Trending Movies" eyebrow="TMDB-ready" items={movies.data.trending} onStartRoom={handleStartRoomClick} /> : null}
       {anime.data ? <ContentRail title="Trending Anime" eyebrow="Jikan-ready" items={anime.data.top} onStartRoom={handleStartRoomClick} /> : null}
 
       {/* Discord-style Friend Activity Feed section */}
-      <section className="glass rounded-[28px] p-6 border border-white/5 bg-[#111111]/85 shadow-2xl relative overflow-hidden">
-        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
-            <h2 className="font-display text-xl font-black text-white flex items-center gap-2">
-              <Compass className="h-5 w-5 text-[#ff3d47]" />
-              <span>Friends Activity Feed</span>
-            </h2>
-            <p className="text-xs text-neutral-400">See what anime your circle is streaming live and jump straight in.</p>
-          </div>
-          
-          <Button
-            className="bg-neutral-800 hover:bg-neutral-750 text-white rounded-xl h-11 px-5 border border-white/5 font-extrabold text-sm"
-            onClick={() => handleStartRoomClick()}
-          >
-            <Play className="h-4 w-4 text-[#ff3d47]" />
-            <span>Create Public Party</span>
-          </Button>
-        </div>
-
-        {/* Interactive Friend Row Cards */}
-        <div className="grid gap-4 mt-6 md:grid-cols-3">
-          {mockFriendActivities.map((friend) => (
-            <div
-              key={friend.name}
-              className="p-4 rounded-2xl bg-white/2 border border-white/5 hover:border-[#ff3d47]/20 hover:bg-white/5 transition-all duration-300 flex items-center justify-between gap-3 group"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white relative shadow-inner"
-                  style={{ backgroundColor: friend.avatarColor }}
-                >
-                  {friend.name.slice(0, 1).toUpperCase()}
-                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-emerald-500 rounded-full ring-2 ring-[#111111]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-white group-hover:text-[#ff3d47] transition-colors">{friend.name}</h3>
-                  <p className="text-[11px] text-neutral-400 font-semibold">{friend.status}</p>
-                  <p className="text-[10px] text-neutral-500 font-medium font-mono">{friend.roomName}</p>
-                </div>
-              </div>
-
-              <Button
-                size="sm"
-                className="bg-neutral-850 hover:bg-[#ff3d47] text-white hover:text-white rounded-xl h-8 text-[11px] font-black border border-white/5 transition-all"
-                onClick={() => {
-                  play("click");
-                  // Trigger direct Room Create for testing
-                  void startRoom(undefined, undefined, "public").then((id) => {
-                    navigate(`/room/${id}`);
-                  });
-                }}
-              >
-                Join
-              </Button>
+      {rooms.length > 0 && (
+        <section className="glass rounded-[28px] p-6 border border-white/5 bg-[#111111]/85 shadow-2xl relative overflow-hidden">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
+              <h2 className="font-display text-xl font-black text-white flex items-center gap-2">
+                <Compass className="h-5 w-5 text-[#ff3d47]" />
+                <span>Friends Activity Feed</span>
+              </h2>
+              <p className="text-xs text-neutral-400">See what anime your circle is streaming live and jump straight in.</p>
             </div>
-          ))}
-        </div>
-      </section>
+            
+            <Button
+              className="bg-neutral-800 hover:bg-neutral-750 text-white rounded-xl h-11 px-5 border border-white/5 font-extrabold text-sm"
+              onClick={() => handleStartRoomClick()}
+            >
+              <Play className="h-4 w-4 text-[#ff3d47]" />
+              <span>Create Public Party</span>
+            </Button>
+          </div>
+
+          {/* Interactive Friend Row Cards */}
+          <div className="grid gap-4 mt-6 md:grid-cols-3">
+            {rooms.slice(0, 3).map((room) => {
+              const host = Object.values(room.participants || {}).find(p => p.isHost) || Object.values(room.participants || {})[0] || { name: "Host", avatarColor: "#ff3d47" };
+              const participantCount = Object.keys(room.participants || {}).length;
+
+              return (
+                <div
+                  key={room.id}
+                  className="p-4 rounded-2xl bg-white/2 border border-white/5 hover:border-[#ff3d47]/20 hover:bg-white/5 transition-all duration-300 flex items-center justify-between gap-3 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-black text-white relative shadow-inner overflow-hidden"
+                      style={{ backgroundColor: host.avatar ? undefined : (host.avatarColor || "#ff3d47") }}
+                    >
+                      {host.avatar ? (
+                        <img src={host.avatar} alt={host.name} className="h-full w-full object-cover" />
+                      ) : (
+                        host.name.slice(0, 1).toUpperCase()
+                      )}
+                      <span className="absolute bottom-0 right-0 h-3 w-3 bg-emerald-500 rounded-full ring-2 ring-[#111111]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-extrabold text-white group-hover:text-[#ff3d47] transition-colors truncate">{host.name}</h3>
+                      <p className="text-[11px] text-neutral-400 font-semibold truncate">
+                        {room.isPlaying ? "Watching" : "Waiting in"} {room.roomName}
+                      </p>
+                      <p className="text-[10px] text-neutral-500 font-medium font-mono truncate">
+                        {participantCount} {participantCount === 1 ? "member" : "members"} synced
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    className="bg-neutral-850 hover:bg-[#ff3d47] text-white hover:text-white rounded-xl h-8 text-[11px] font-black border border-white/5 transition-all flex-shrink-0"
+                    onClick={() => {
+                      play("click");
+                      if (room.roomType === "private" || room.isPrivate) {
+                        setSelectedPrivateRoom(room);
+                        setPrivateJoinOpen(true);
+                      } else {
+                        navigate(`/room/${room.id}`);
+                      }
+                    }}
+                  >
+                    Join
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <StartTogetherModal open={startOpen} onClose={() => setStartOpen(false)} defaultVideoUrl={customUrl} selectedContent={selectedContent} />
       <PrivateJoinModal open={privateJoinOpen} room={selectedPrivateRoom} onClose={() => setPrivateJoinOpen(false)} onSuccess={(id) => navigate(`/room/${id}`)} />

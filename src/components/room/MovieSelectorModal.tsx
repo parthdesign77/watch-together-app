@@ -8,6 +8,9 @@ import type { WatchRoom, ContentItem } from "../../types";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
+import { useAuth } from "../../context/AuthContext";
+import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { db } from "../../lib/firebase";
 
 interface MovieSelectorModalProps {
   open: boolean;
@@ -16,6 +19,7 @@ interface MovieSelectorModalProps {
 }
 
 export function MovieSelectorModal({ open, onClose, room }: MovieSelectorModalProps) {
+  const { profile } = useAuth();
   const [search, setSearch] = useState("");
   const movies = useQuery({ queryKey: ["movieRows"], queryFn: getMovieRows });
   const anime = useQuery({ queryKey: ["animeRows"], queryFn: getAnimeRows });
@@ -58,6 +62,11 @@ export function MovieSelectorModal({ open, onClose, room }: MovieSelectorModalPr
         status: "watching",
         ...(item.type === "anime" ? { episode: "Episode 1" } : {})
       });
+      if (profile) {
+        await updateDoc(doc(db, "users", profile.uid), {
+          viewingHistory: arrayUnion(item.id)
+        });
+      }
       onClose();
     } catch (error) {
       console.error("Select movie error:", error);

@@ -97,6 +97,7 @@ export async function createWatchRoom(
 
   await updateDoc(doc(db, "users", profile.uid), {
     recentRooms: arrayUnion(ref.id),
+    ...(content?.id ? { viewingHistory: arrayUnion(content.id) } : {}),
     updatedAt: serverTimestamp()
   });
 
