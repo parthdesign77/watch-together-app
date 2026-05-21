@@ -115,7 +115,37 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     (stream: MediaStream) => {
       localStreams.current = [...localStreams.current.filter((item) => item.id !== stream.id), stream];
       Object.values(peers.current).forEach((peer) => {
-        stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+        const senders = peer.getSenders();
+        stream.getTracks().forEach((track) => {
+          const alreadyAdded = senders.some((s) => s.track?.id === track.id);
+          if (!alreadyAdded) {
+            try {
+              peer.addTrack(track, stream);
+            } catch (e) {
+              console.warn("Error adding track to peer:", e);
+            }
+          }
+        });
+      });
+      void broadcastOffers();
+    },
+    [broadcastOffers]
+  );
+
+  const removeLocalStream = useCallback(
+    (stream: MediaStream) => {
+      localStreams.current = localStreams.current.filter((item) => item.id !== stream.id);
+      const trackIds = new Set(stream.getTracks().map((t) => t.id));
+      Object.values(peers.current).forEach((peer) => {
+        peer.getSenders().forEach((sender) => {
+          if (sender.track && trackIds.has(sender.track.id)) {
+            try {
+              peer.removeTrack(sender);
+            } catch (e) {
+              console.warn("Error removing track from peer:", e);
+            }
+          }
+        });
       });
       void broadcastOffers();
     },
@@ -186,9 +216,12 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   }, [addLocalStream]);
 
   const stopCamera = useCallback(() => {
-    cameraStream?.getTracks().forEach((track) => track.stop());
-    setCameraStream(null);
-  }, [cameraStream]);
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      removeLocalStream(cameraStream);
+      setCameraStream(null);
+    }
+  }, [cameraStream, removeLocalStream]);
 
   const startScreenShare = useCallback(async (mode: "entire-screen" | "window" = "entire-screen", plan?: string) => {
     let videoConstraints: MediaTrackConstraints = {
@@ -214,21 +247,52 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       };
     }
 
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: videoConstraints,
-      audio: true
-    });
+    let stream: MediaStream;
+    try {
+      // Attempt 1: High-fidelity flat audio profile for screenshare system/movie audio
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: videoConstraints,
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        } as any
+      });
+    } catch (e) {
+      console.warn("Failed screen share with high-fidelity audio, trying standard audio...", e);
+      try {
+        // Attempt 2: Standard audio
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: videoConstraints,
+          audio: true
+        });
+      } catch (e2) {
+        console.warn("Failed screen share with standard audio, trying video-only fallback...", e2);
+        // Attempt 3: Video-only fallback to guarantee screenshare opens successfully
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: videoConstraints,
+          audio: false
+        });
+      }
+    }
+
     setScreenStream(stream);
     addLocalStream(stream);
+
     stream.getVideoTracks()[0]?.addEventListener("ended", () => {
+      stream.getTracks().forEach((track) => track.stop());
+      removeLocalStream(stream);
       setScreenStream(null);
     });
-  }, [addLocalStream]);
+  }, [addLocalStream, removeLocalStream]);
 
   const stopScreenShare = useCallback(() => {
-    screenStream?.getTracks().forEach((track) => track.stop());
-    setScreenStream(null);
-  }, [screenStream]);
+    if (screenStream) {
+      screenStream.getTracks().forEach((track) => track.stop());
+      removeLocalStream(screenStream);
+      setScreenStream(null);
+    }
+  }, [screenStream, removeLocalStream]);
 
   const toggleMute = useCallback(() => {
     setMuted((nextMuted) => {

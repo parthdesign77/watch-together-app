@@ -172,8 +172,8 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                   }}
                   className={`relative flex flex-col items-center justify-center rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-500 ease-out ${
                     feed
-                      ? "aspect-video w-[320px] sm:w-[400px] md:w-[480px]"
-                      : "aspect-square w-[220px] sm:w-[260px] md:w-[300px]"
+                      ? "aspect-video w-full max-w-[320px] sm:max-w-[400px] md:max-w-[480px]"
+                      : "aspect-square w-[200px] sm:w-[260px] md:w-[300px]"
                   } ${
                     isSpeaking 
                       ? "border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.2)] scale-[1.02]" 
@@ -331,7 +331,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                 Resync
               </Button>
               
-              <label className="ml-auto flex items-center gap-2 text-sm text-neutral-300 bg-neutral-800/80 backdrop-blur px-3 py-1.5 rounded-xl border border-white/5 h-10">
+              <label className="ml-auto hidden sm:flex items-center gap-2 text-sm text-neutral-300 bg-neutral-800/80 backdrop-blur px-3 py-1.5 rounded-xl border border-white/5 h-10">
                 <Volume2 className="h-4 w-4 text-neutral-400" />
                 <input
                   type="range"

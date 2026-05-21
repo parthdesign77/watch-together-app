@@ -50,30 +50,30 @@ export function InviteModal({ open, room, onClose }: InviteModalProps) {
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
           <a href={`https://wa.me/?text=${text}`} target="_blank" rel="noreferrer">
-            <Button variant="secondary" className="w-full">
-              <MessageCircle className="h-4 w-4" />
+            <Button variant="secondary" size="sm" className="w-full text-xs">
+              <MessageCircle className="h-3.5 w-3.5" />
               WhatsApp
             </Button>
           </a>
           <a href={`https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}`} target="_blank" rel="noreferrer">
-            <Button variant="secondary" className="w-full">
-              <Send className="h-4 w-4" />
+            <Button variant="secondary" size="sm" className="w-full text-xs">
+              <Send className="h-3.5 w-3.5" />
               Telegram
             </Button>
           </a>
           <a href={`https://twitter.com/intent/tweet?text=${text}`} target="_blank" rel="noreferrer">
-            <Button variant="secondary" className="w-full">
-              <Twitter className="h-4 w-4" />X
+            <Button variant="secondary" size="sm" className="w-full text-xs">
+              <Twitter className="h-3.5 w-3.5" />X
             </Button>
           </a>
           <a href={`mailto:?subject=Join my Watch Together room&body=${text}`}>
-            <Button variant="secondary" className="w-full">
-              <Mail className="h-4 w-4" />
+            <Button variant="secondary" size="sm" className="w-full text-xs">
+              <Mail className="h-3.5 w-3.5" />
               Email
             </Button>
           </a>
-          <Button variant="secondary" onClick={() => copy(inviteUrl)}>
-            <Copy className="h-4 w-4" />
+          <Button variant="secondary" size="sm" className="w-full text-xs" onClick={() => copy(inviteUrl)}>
+            <Copy className="h-3.5 w-3.5" />
             Discord
           </Button>
         </div>

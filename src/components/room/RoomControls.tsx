@@ -99,7 +99,7 @@ export function RoomControls({
   const emojis = ["👍", "❤️", "😂", "😮", "🔥"];
 
   return (
-    <section className="glass relative rounded-[20px] p-5 border border-white/5 bg-[#111111]/80 backdrop-blur-md shadow-glow-sm">
+    <section className="glass relative rounded-[20px] p-3.5 sm:p-5 border border-white/5 bg-[#111111]/80 backdrop-blur-md shadow-glow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         
         {/* Left Side: Stacked Room & Movie Info */}
@@ -117,7 +117,7 @@ export function RoomControls({
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2 text-xs text-neutral-400 mt-0.5">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400 mt-0.5">
             <span className="font-mono text-neutral-300 bg-white/5 px-2 py-0.5 rounded border border-white/5">
               Code: {room.code}
             </span>

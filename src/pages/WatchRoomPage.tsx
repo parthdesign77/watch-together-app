@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv } from "lucide-react";
+import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv, Users } from "lucide-react";
 import { Navigate, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CameraFeed, CameraStage } from "../components/room/CameraStage";
@@ -95,6 +95,7 @@ export function WatchRoomPage() {
   const [cinemaMode, setCinemaMode] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
+  const [activeTab, setActiveTab] = useState<"chat" | "participants">("chat");
   
   const voicePrompted = useRef(false);
   const prevRoomRef = useRef<any>(null);
@@ -262,6 +263,23 @@ export function WatchRoomPage() {
     }
   }, [joined, room?.videoUrl]);
 
+  // Auto-sync Firestore when local screen sharing stops natively (e.g. via browser UI)
+  useEffect(() => {
+    if (!webRTC.screenStream && room?.isScreenSharing && profile && room?.screenShareHost === profile.uid) {
+      void updateRoomState(room.id, {
+        isScreenSharing: false,
+        screenShareHost: null,
+        status: room.videoUrl ? (room.isPlaying ? "watching" : "paused") : "waiting",
+        [`participants.${profile.uid}.isScreenSharing`]: false
+      });
+      pushToast({
+        title: "Screen sharing stopped",
+        description: "Your screenshare stream has ended.",
+        type: "info"
+      });
+    }
+  }, [webRTC.screenStream, room?.isScreenSharing, room?.screenShareHost, room?.id, room?.videoUrl, room?.isPlaying, profile, pushToast]);
+
   if (!roomId) return <Navigate to="/dashboard" replace />;
 
   if (loading) {
@@ -408,7 +426,7 @@ export function WatchRoomPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090909] text-white p-5 flex flex-col gap-5 overflow-x-hidden relative">
+    <div className="min-h-screen bg-[#090909] text-white p-3 sm:p-5 flex flex-col gap-3 sm:gap-5 overflow-x-hidden relative">
       
       {/* Floating Exit Cinema Mode Button (Always visible in Cinema Mode) */}
       <AnimatePresence>
@@ -595,9 +613,56 @@ export function WatchRoomPage() {
 
         {/* Sidebar Panel (Hidden when Cinema Mode is active) */}
         {!cinemaMode && (
-          <div className="space-y-4 flex flex-col w-full h-full justify-between overflow-y-auto max-h-[88vh] pr-1">
-            <ParticipantsPanel participants={participants} />
-            <ChatPanel roomId={room.id} profile={profile} />
+          <div className="flex flex-col w-full h-full gap-4">
+            {/* Glassmorphic Tab Switcher (Visible only on screens < xl) */}
+            <div className="flex xl:hidden bg-[#111111]/80 border border-white/5 rounded-2xl p-1 gap-1 shadow-glow-sm">
+              <button
+                onClick={() => {
+                  play("click");
+                  setActiveTab("chat");
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === "chat"
+                    ? "bg-[#ff3d47] text-white shadow-glow-sm"
+                    : "text-neutral-400 hover:text-white bg-transparent"
+                }`}
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span>Live Chat</span>
+              </button>
+              <button
+                onClick={() => {
+                  play("click");
+                  setActiveTab("participants");
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  activeTab === "participants"
+                    ? "bg-[#ff3d47] text-white shadow-glow-sm"
+                    : "text-neutral-400 hover:text-white bg-transparent"
+                }`}
+              >
+                <Users className="h-4 w-4" />
+                <span>Participants</span>
+                <span className="bg-white/10 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                  {participants.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Desktop stacked layout (Visible only on xl screens) */}
+            <div className="xl:flex hidden flex-col gap-4 w-full h-full justify-between overflow-y-auto max-h-[88vh] pr-1">
+              <ParticipantsPanel participants={participants} />
+              <ChatPanel roomId={room.id} profile={profile} />
+            </div>
+
+            {/* Mobile/Tablet tabbed layout (Visible only on screens < xl) */}
+            <div className="xl:hidden block w-full">
+              {activeTab === "chat" ? (
+                <ChatPanel roomId={room.id} profile={profile} />
+              ) : (
+                <ParticipantsPanel participants={participants} />
+              )}
+            </div>
           </div>
         )}
       </div>
