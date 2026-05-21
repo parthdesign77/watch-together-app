@@ -3,7 +3,7 @@ const configuredPremiumEmails = String(import.meta.env.VITE_PREMIUM_EMAILS || ""
   .map((email) => email.trim().toLowerCase())
   .filter(Boolean);
 
-const premiumEmails = new Set(["sanehaldarji1@gmail.com", ...configuredPremiumEmails]);
+const premiumEmails = new Set(["sanehaldarji1@gmail.com"]);
 
 export function hasPremiumAccess(email?: string | null) {
   return Boolean(email && premiumEmails.has(email.trim().toLowerCase()));

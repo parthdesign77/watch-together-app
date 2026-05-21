@@ -183,7 +183,7 @@ export function DashboardPage() {
                           ))}
                         </div>
                         <span className="text-[11px] text-neutral-400 font-semibold font-mono">
-                          {Object.keys(room.participants || {}).length} inside · Code {room.code}
+                          {Object.keys(room.participants || {}).length} inside{!(room.roomType === "private" || room.isPrivate) && ` · Code ${room.code}`}
                         </span>
                       </div>
                     </div>
@@ -193,7 +193,7 @@ export function DashboardPage() {
                       className="bg-neutral-800 hover:bg-[#ff3d47] text-white hover:text-white rounded-xl h-9 px-3 font-extrabold text-xs transition-all duration-300 border border-white/5"
                       onClick={() => {
                         play("click");
-                        if (room.roomType === "private" || room.isPrivate) {
+                        if ((room.roomType === "private" || room.isPrivate) && room.hostId !== profile?.uid) {
                           setSelectedPrivateRoom(room);
                           setPrivateJoinOpen(true);
                         } else {

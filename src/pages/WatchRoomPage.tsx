@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff } from "lucide-react";
+import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv } from "lucide-react";
 import { Navigate, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CameraFeed, CameraStage } from "../components/room/CameraStage";
@@ -52,6 +52,7 @@ export function WatchRoomPage() {
   
   const [joined, setJoined] = useState(false);
   const [cinemaMode, setCinemaMode] = useState(false);
+  const [headerHovered, setHeaderHovered] = useState(false);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
   
   const voicePrompted = useRef(false);
@@ -90,15 +91,53 @@ export function WatchRoomPage() {
     return feeds;
   }, [profile, remoteScreenStream, room?.isScreenSharing, room?.participants, webRTC.cameraStream, webRTC.remoteStreams]);
 
-  // Prevent accidental back gestures / tab closures
+  // Prevent accidental back gestures / tab closures / browser back button navigation
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+
+    // Push a dummy state so that there is something to pop when browser back is pressed
+    window.history.pushState(null, "", window.location.href);
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      // Show confirmation modal
+      setLeaveModalOpen(true);
+      // Push state again so the user stays on the current URL
+      window.history.pushState(null, "", window.location.href);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, []);
+
+  // Safe cleanup of WebRTC streams on unmount to prevent visual and page crashes
+  useEffect(() => {
+    return () => {
+      cleanupWebRTC();
+    };
+  }, []);
+
+  // Escape key to exit Cinema Mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && cinemaMode) {
+        setCinemaMode(false);
+        play("click");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [cinemaMode, play]);
 
   // Listen for platform room actions and log events to screen
   useEffect(() => {
@@ -306,11 +345,42 @@ export function WatchRoomPage() {
   return (
     <div className="min-h-screen bg-[#090909] text-white p-5 flex flex-col gap-5 overflow-x-hidden relative">
       
+      {/* Floating Exit Cinema Mode Button (Always visible in Cinema Mode) */}
+      <AnimatePresence>
+        {cinemaMode && (
+          <motion.button
+            initial={{ opacity: 0, y: -20, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -20, x: "-50%" }}
+            className="fixed top-5 left-1/2 z-50 glass rounded-full px-5 py-2.5 border border-[#ff3d47]/30 bg-black/80 hover:bg-[#ff3d47]/20 text-[#ff3d47] hover:text-white text-xs font-extrabold flex items-center gap-2 shadow-[0_0_15px_rgba(255,61,71,0.25)] transition-all duration-300 active:scale-95 cursor-pointer"
+            onClick={() => {
+              play("click");
+              setCinemaMode(false);
+            }}
+          >
+            <Tv className="h-4.5 w-4.5" />
+            <span>Exit Cinema Mode</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Invisible Top Hover Trigger for Cinema Mode */}
+      {cinemaMode && (
+        <div
+          className="fixed top-0 left-0 right-0 h-4 z-40 bg-transparent"
+          onMouseEnter={() => setHeaderHovered(true)}
+        />
+      )}
+
       {/* Sliding Header Controls (Hidden when in Cinema Mode unless top-hovered) */}
       <div
+        onMouseEnter={() => cinemaMode && setHeaderHovered(true)}
+        onMouseLeave={() => cinemaMode && setHeaderHovered(false)}
         className={`transition-all duration-500 ease-in-out z-40 ${
           cinemaMode
-            ? "fixed top-0 left-0 right-0 p-5 bg-[#090909]/95 backdrop-blur-lg border-b border-white/5 transform -translate-y-full hover:translate-y-0 opacity-0 hover:opacity-100 shadow-2xl"
+            ? `fixed top-0 left-0 right-0 p-5 bg-[#090909]/95 backdrop-blur-lg border-b border-white/5 transform shadow-2xl ${
+                headerHovered ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
+              }`
             : "relative w-full"
         }`}
       >
@@ -407,6 +477,7 @@ export function WatchRoomPage() {
               remoteScreenStream={remoteScreenStream}
               cameraFeeds={cameraFeeds}
               participants={participants}
+              onVideoEnded={() => setCinemaMode(false)}
             />
           </div>
 

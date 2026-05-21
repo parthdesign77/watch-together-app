@@ -15,6 +15,7 @@ interface VideoStageProps {
   remoteScreenStream?: MediaStream | null;
   cameraFeeds?: CameraFeed[];
   participants?: Participant[];
+  onVideoEnded?: () => void;
 }
 
 interface FloatingReaction {
@@ -33,7 +34,7 @@ function youtubeEmbed(url: string) {
   return match ? `https://www.youtube.com/embed/${match[1]}?enablejsapi=1&rel=0` : url;
 }
 
-export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cameraFeeds = [], participants = [] }: VideoStageProps) {
+export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cameraFeeds = [], participants = [], onVideoEnded }: VideoStageProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [volume, setVolume] = useState(0.86);
@@ -43,6 +44,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
   
   const activeScreenStream = screenStream || remoteScreenStream || null;
   const hasVideo = Boolean(room.videoUrl);
+  const hasActiveMedia = Boolean(
+    activeScreenStream || (hasVideo && room.status !== "waiting" && room.status !== "ended")
+  );
 
   // Hook up real-time floating reactions
   useRoomReactions(room.id, (reaction) => {
@@ -158,9 +162,13 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
   return (
     <div
       ref={stageRef}
-      className={`relative overflow-hidden rounded-[24px] border border-white/5 bg-[#090909] shadow-2xl transition-all duration-300 ${
-        room.theaterMode ? "min-h-[75vh]" : "aspect-video"
-      }`}
+      className={
+        hasActiveMedia
+          ? `relative overflow-hidden rounded-[24px] border border-white/5 bg-[#090909] shadow-2xl transition-all duration-300 ${
+              room.theaterMode ? "min-h-[75vh]" : "aspect-video"
+            }`
+          : "relative w-full flex items-center justify-center transition-all duration-300"
+      }
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -193,9 +201,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
 
       {activeScreenStream ? (
         <StreamVideo stream={activeScreenStream} muted={Boolean(screenStream)} className="h-full w-full object-contain" />
-      ) : (!room.videoUrl || room.status === "waiting") ? (
-        <div className="h-full w-full flex items-center justify-center p-8 bg-gradient-to-br from-[#070708] to-[#121215] overflow-y-auto">
-          <div className="flex flex-wrap gap-6 items-center justify-center max-w-full p-4 mx-auto">
+      ) : (!room.videoUrl || room.status === "waiting" || room.status === "ended") ? (
+        <div className="w-full flex items-center justify-center py-4">
+          <div className="flex flex-wrap gap-6 items-center justify-center max-w-full mx-auto">
             {participants.map((p) => {
               const feed = cameraFeeds.find((f) => f.id.startsWith(p.uid));
               const isSpeaking = p.isSpeaking;
@@ -291,27 +299,32 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
           onPlay={() => isHost && void syncPlayback(true)}
           onPause={() => isHost && void syncPlayback(false)}
           onSeeking={() => isHost && void updatePlayback(room.id, { currentTime: videoRef.current?.currentTime || 0 })}
+          onEnded={() => {
+            if (isHost) {
+              void updatePlayback(room.id, { isPlaying: false, status: "ended" });
+            }
+            onVideoEnded?.();
+          }}
         />
       )}
 
       {/* Badges Overlays */}
-      <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2 z-30">
-        <Badge className="bg-[#ff3d47] text-white border-none font-bold uppercase tracking-wider text-[10px] px-2 py-0.5 rounded">
-          {room.isScreenSharing ? "LIVE SCREEN" : room.status}
-        </Badge>
-        <Badge className="bg-purple-600 text-white border-none font-bold text-[10px] px-2 py-0.5 rounded">
-          {room.quality}
-        </Badge>
-        {drift > 0.5 ? (
-          <Badge className="bg-amber-600 text-white border-none font-bold text-[10px] px-2 py-0.5 rounded">
-            Drift {drift.toFixed(1)}s
+      {hasActiveMedia && (
+        <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2 z-30">
+          <Badge className="bg-purple-600 text-white border-none font-bold text-[10px] px-2 py-0.5 rounded">
+            {room.quality}
           </Badge>
-        ) : (
-          <Badge className="bg-emerald-600 text-white border-none font-bold text-[10px] px-2 py-0.5 rounded">
-            IN SYNC
-          </Badge>
-        )}
-      </div>
+          {drift > 0.5 ? (
+            <Badge className="bg-amber-600 text-white border-none font-bold text-[10px] px-2 py-0.5 rounded">
+              Drift {drift.toFixed(1)}s
+            </Badge>
+          ) : (
+            <Badge className="bg-emerald-600 text-white border-none font-bold text-[10px] px-2 py-0.5 rounded">
+              IN SYNC
+            </Badge>
+          )}
+        </div>
+      )}
 
       {(activeScreenStream || (hasVideo && room.status !== "waiting")) && cameraFeeds.length ? <CameraStage feeds={cameraFeeds} screenShareActive containerRef={stageRef} /> : null}
 
