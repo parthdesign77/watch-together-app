@@ -55,7 +55,10 @@ export interface WatchRoom {
   status: RoomStatus;
   isPrivate: boolean;
   password?: string;
-  quality: "720p" | "1080p" | "auto";
+  quality: "480p" | "720p" | "1080p" | "auto";
+  maxQuality?: "480p" | "720p" | "1080p";
+  audioChannel?: string;
+  audioLanguage?: string;
   theaterMode: boolean;
   createdAt: number;
   updatedAt: number;

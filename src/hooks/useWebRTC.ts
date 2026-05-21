@@ -156,13 +156,29 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     };
   }, [addLocalStream, muted]);
 
-  const startCamera = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
+  const startCamera = useCallback(async (plan?: string) => {
+    let videoConstraints: MediaTrackConstraints = {
+      width: { ideal: 640, max: 640 },
+      height: { ideal: 480, max: 480 },
+      frameRate: { ideal: 24, max: 24 }
+    };
+
+    if (plan === "premium") {
+      videoConstraints = {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30, max: 60 }
+      };
+    } else if (plan === "standard") {
+      videoConstraints = {
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        frameRate: { ideal: 30, max: 60 }
-      },
+        frameRate: { ideal: 30, max: 30 }
+      };
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: videoConstraints,
       audio: false
     });
     setCameraStream(stream);
@@ -174,14 +190,32 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     setCameraStream(null);
   }, [cameraStream]);
 
-  const startScreenShare = useCallback(async (mode: "entire-screen" | "window" = "entire-screen") => {
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
+  const startScreenShare = useCallback(async (mode: "entire-screen" | "window" = "entire-screen", plan?: string) => {
+    let videoConstraints: MediaTrackConstraints = {
+      displaySurface: mode === "entire-screen" ? "monitor" : "window",
+      width: { ideal: 854, max: 854 },
+      height: { ideal: 480, max: 480 },
+      frameRate: { ideal: 15, max: 15 }
+    };
+
+    if (plan === "premium") {
+      videoConstraints = {
         displaySurface: mode === "entire-screen" ? "monitor" : "window",
         width: { ideal: 1920 },
         height: { ideal: 1080 },
         frameRate: { ideal: 30, max: 60 }
-      } as MediaTrackConstraints,
+      };
+    } else if (plan === "standard") {
+      videoConstraints = {
+        displaySurface: mode === "entire-screen" ? "monitor" : "window",
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30, max: 30 }
+      };
+    }
+
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: videoConstraints,
       audio: true
     });
     setScreenStream(stream);

@@ -1,5 +1,6 @@
 import { Music2, Pause, Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { playSound } from "../../lib/sounds";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 
@@ -12,7 +13,11 @@ const presets = [
 
 type Preset = (typeof presets)[number]["id"];
 
-export function AmbientSoundControl() {
+interface AmbientSoundControlProps {
+  isScreenSharing?: boolean;
+}
+
+export function AmbientSoundControl({ isScreenSharing = false }: AmbientSoundControlProps) {
   const [playing, setPlaying] = useState(false);
   const [preset, setPreset] = useState<Preset>("rain");
   const [volume, setVolume] = useState(0.18);
@@ -21,6 +26,14 @@ export function AmbientSoundControl() {
     gain: GainNode;
     stop: () => void;
   } | null>(null);
+
+  // Auto shut down ambient sound when someone starts screen sharing
+  useEffect(() => {
+    if (isScreenSharing && playing) {
+      stopAmbient();
+      setPlaying(false);
+    }
+  }, [isScreenSharing]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -94,6 +107,7 @@ export function AmbientSoundControl() {
   }
 
   function toggle() {
+    playSound("toggle");
     if (playing) {
       stopAmbient();
       setPlaying(false);
@@ -123,7 +137,10 @@ export function AmbientSoundControl() {
             className={`h-9 rounded-md border text-xs font-bold transition ${
               preset === item.id ? "border-red-500 bg-red-500/20 text-white" : "border-white/10 bg-white/6 text-muted hover:text-white"
             }`}
-            onClick={() => setPreset(item.id)}
+            onClick={() => {
+              playSound("click");
+              setPreset(item.id);
+            }}
           >
             {item.label}
           </button>

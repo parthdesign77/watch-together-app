@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Maximize2, Pause, PictureInPicture2, Play, RefreshCw, SkipBack, Volume2 } from "lucide-react";
+import { Maximize2, Pause, PictureInPicture2, Play, RefreshCw, SkipBack, Volume2, Video } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updatePlayback } from "../../hooks/useRooms";
 import type { WatchRoom } from "../../types";
@@ -31,13 +31,14 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
   const [drift, setDrift] = useState(0);
   const [hovered, setHovered] = useState(false);
   const activeScreenStream = screenStream || remoteScreenStream || null;
+  const hasVideo = Boolean(room.videoUrl);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || activeScreenStream || isYouTube(room.videoUrl)) return;
+    if (!video || activeScreenStream || isYouTube(room.videoUrl) || !hasVideo) return;
 
     let cancelled = false;
-    let hls: InstanceType<(typeof import("hls.js"))["default"]> | null = null;
+    let hls: any = null;
 
     if (room.videoUrl.endsWith(".m3u8")) {
       void import("hls.js").then(({ default: Hls }) => {
@@ -46,6 +47,24 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
           hls = new Hls({ lowLatencyMode: true, enableWorker: true });
           hls.loadSource(room.videoUrl);
           hls.attachMedia(video);
+
+          // Listen to manifest and restrict current quality levels based on subscription limits
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (!hls) return;
+            const targetHeight = room.quality === "1080p" ? 1080 : room.quality === "720p" ? 720 : 480;
+            let bestLevel = 0;
+            let closestDiff = Infinity;
+            hls.levels.forEach((level: any, idx: number) => {
+              if (level.height && level.height <= targetHeight) {
+                const diff = targetHeight - level.height;
+                if (diff < closestDiff) {
+                  closestDiff = diff;
+                  bestLevel = idx;
+                }
+              }
+            });
+            hls.currentLevel = bestLevel;
+          });
         } else {
           video.src = room.videoUrl;
         }
@@ -58,7 +77,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
     }
 
     video.src = room.videoUrl;
-  }, [activeScreenStream, room.videoUrl]);
+  }, [activeScreenStream, room.videoUrl, room.quality, hasVideo]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -124,6 +143,16 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
     >
       {activeScreenStream ? (
         <StreamVideo stream={activeScreenStream} muted={Boolean(screenStream)} className="h-full w-full object-contain" />
+      ) : !hasVideo ? (
+        <div className="h-full w-full flex flex-col items-center justify-center p-6 text-center select-none bg-black/60 bg-radial-dots">
+          <div className="h-16 w-16 rounded-full bg-red-600/10 text-red-500 flex items-center justify-center animate-pulse mb-4 border border-red-500/20">
+            <Video className="h-8 w-8 text-red-500" />
+          </div>
+          <h3 className="font-display text-xl font-bold text-snow">Camera Sync Mode</h3>
+          <p className="text-xs text-muted max-w-sm mt-2">
+            No movie is playing yet. {isHost ? "Choose a movie using the 'Select Movie' button, or turn on your camera!" : "Wait for the host to select a movie, or turn on your camera to chat!"}
+          </p>
+        </div>
       ) : isYouTube(room.videoUrl) ? (
         <iframe
           title={room.roomName}

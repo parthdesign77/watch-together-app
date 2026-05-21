@@ -1,5 +1,6 @@
 import {
   Crown,
+  Film,
   Mic,
   MicOff,
   MonitorUp,
@@ -12,6 +13,7 @@ import {
   VideoOff
 } from "lucide-react";
 import { updateRoomState } from "../../hooks/useRooms";
+import { playSound } from "../../lib/sounds";
 import type { WatchRoom } from "../../types";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -26,6 +28,9 @@ interface RoomControlsProps {
   onToggleCamera: () => void;
   onShareScreen: (mode: "entire-screen" | "window") => void;
   onStopScreen: () => void;
+  onOpenQuality: () => void;
+  onOpenSettings: () => void;
+  onOpenSelector: () => void;
   hasCameraStream: boolean;
   hasScreenStream: boolean;
 }
@@ -40,6 +45,9 @@ export function RoomControls({
   onToggleCamera,
   onShareScreen,
   onStopScreen,
+  onOpenQuality,
+  onOpenSettings,
+  onOpenSelector,
   hasCameraStream,
   hasScreenStream
 }: RoomControlsProps) {
@@ -61,61 +69,128 @@ export function RoomControls({
           </p>
         </div>
 
-        <Button variant="secondary" onClick={onInvite}>
+        {isHost && (
+          <Button
+            className="bg-red-600 hover:bg-red-700 text-white font-bold gap-2 shadow-glow-sm border-none animate-pulse hover:animate-none"
+            onClick={() => {
+              playSound("click");
+              onOpenSelector();
+            }}
+          >
+            <Film className="h-4 w-4" />
+            Select Movie
+          </Button>
+        )}
+
+        <Button
+          variant="secondary"
+          onClick={() => {
+            playSound("click");
+            onInvite();
+          }}
+        >
           <Share2 className="h-4 w-4" />
           Invite
         </Button>
-        <Button variant="secondary" onClick={onStartVoice}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            playSound("success");
+            onStartVoice();
+          }}
+        >
           <PhoneCall className="h-4 w-4" />
           Voice
         </Button>
-        <Button variant={muted ? "danger" : "secondary"} size="icon" onClick={onToggleMute} aria-label="Toggle mute">
+        <Button
+          variant={muted ? "danger" : "secondary"}
+          size="icon"
+          onClick={() => {
+            playSound("toggle");
+            onToggleMute();
+          }}
+          aria-label="Toggle mute"
+        >
           {muted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
-        <Button variant={hasCameraStream ? "danger" : "secondary"} onClick={onToggleCamera}>
+        <Button
+          variant={hasCameraStream ? "danger" : "secondary"}
+          onClick={() => {
+            playSound("toggle");
+            onToggleCamera();
+          }}
+        >
           {hasCameraStream ? <VideoOff className="h-4 w-4" /> : <Video className="h-4 w-4" />}
           {hasCameraStream ? "Camera Off" : "Camera"}
         </Button>
         {hasScreenStream ? (
-          <Button variant="danger" onClick={onStopScreen}>
+          <Button
+            variant="danger"
+            onClick={() => {
+              playSound("danger");
+              onStopScreen();
+            }}
+          >
             <MonitorUp className="h-4 w-4" />
             Stop Share
           </Button>
         ) : (
-          <div className="flex overflow-hidden rounded-lg border border-white/10">
-            <Button variant="secondary" className="rounded-none border-0" onClick={() => onShareScreen("entire-screen")}>
+          <div className="flex overflow-hidden rounded-lg border border-white/10 bg-white/6">
+            <Button
+              variant="secondary"
+              className="rounded-none border-0"
+              onClick={() => {
+                playSound("success");
+                onShareScreen("entire-screen");
+              }}
+            >
               <MonitorUp className="h-4 w-4" />
               Entire Screen
             </Button>
-            <Button variant="secondary" className="rounded-none border-0 border-l border-white/10" onClick={() => onShareScreen("window")}>
+            <Button
+              variant="secondary"
+              className="rounded-none border-0 border-l border-white/10"
+              onClick={() => {
+                playSound("success");
+                onShareScreen("window");
+              }}
+            >
               Window Only
             </Button>
           </div>
         )}
         <Button
           variant="ghost"
-          onClick={() =>
-            updateRoomState(room.id, {
+          onClick={() => {
+            playSound("toggle");
+            void updateRoomState(room.id, {
               theaterMode: !room.theaterMode
-            })
-          }
+            });
+          }}
         >
           <Users className="h-4 w-4" />
           Theater
         </Button>
         <Button
           variant="ghost"
-          disabled={!isHost}
-          onClick={() =>
-            updateRoomState(room.id, {
-              quality: room.quality === "1080p" ? "720p" : "1080p"
-            })
-          }
+          onClick={() => {
+            playSound("click");
+            onOpenQuality();
+          }}
+          className="gap-2"
         >
           <SlidersHorizontal className="h-4 w-4" />
-          {room.quality}
+          <span>{room.quality || "480p"}</span>
         </Button>
-        <Button variant="ghost" size="icon" disabled={!isHost} aria-label="Room settings">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            playSound("click");
+            onOpenSettings();
+          }}
+          aria-label="Room settings"
+        >
           <Settings className="h-4 w-4" />
         </Button>
       </div>

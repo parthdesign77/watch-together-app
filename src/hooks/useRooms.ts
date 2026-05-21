@@ -50,12 +50,25 @@ export async function createWatchRoom(
   const code = makeRoomCode();
   const now = Date.now();
   const participant = participantFromProfile(profile, true);
+
+  // Dynamic resolution boundaries by subscription plan
+  const plan = profile.subscriptionPlan || "free";
+  let defaultQuality: "480p" | "720p" | "1080p" | "auto" = "480p";
+  let maxQuality: "480p" | "720p" | "1080p" = "480p";
+  if (plan === "premium") {
+    defaultQuality = "1080p";
+    maxQuality = "1080p";
+  } else if (plan === "standard") {
+    defaultQuality = "720p";
+    maxQuality = "720p";
+  }
+
   const room: Omit<WatchRoom, "id"> = {
     code,
     hostId: profile.uid,
     roomName: content ? `${content.title} Watch Party` : `${profile.name}'s Watch Room`,
-    videoUrl: videoUrl || content?.trailerUrl || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-    contentType: content?.type || "hls",
+    videoUrl: videoUrl || content?.trailerUrl || "",
+    contentType: content?.type || (videoUrl ? "mp4" : "hls"),
     currentTime: 0,
     isPlaying: false,
     isScreenSharing: false,
@@ -66,7 +79,8 @@ export async function createWatchRoom(
     },
     status: "waiting",
     isPrivate: roomType === "private",
-    quality: profile.subscriptionPlan === "premium" ? "1080p" : "720p",
+    quality: defaultQuality,
+    maxQuality: maxQuality,
     theaterMode: false,
     createdAt: now,
     updatedAt: now,
@@ -173,7 +187,11 @@ export function useActiveRooms(profile?: UserProfile | null) {
   useEffect(() => {
     if (!profile) return;
 
-    const activeRoomsQuery = query(collection(db, "rooms"), where(`participants.${profile.uid}.uid`, "==", profile.uid));
+    // Retrieve all active watch rooms on the platform so everyone can see and join
+    const activeRoomsQuery = query(
+      collection(db, "rooms"),
+      where("status", "in", ["waiting", "watching", "paused", "screen-sharing"])
+    );
     return onSnapshot(activeRoomsQuery, (snapshot) => {
       setRooms(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as WatchRoom));
     });
@@ -260,4 +278,11 @@ export async function addMessageReaction(roomId: string, message: ChatMessage, e
     },
     { merge: true }
   );
+}
+
+export async function endRoom(roomId: string) {
+  await updateRoomState(roomId, {
+    status: "ended",
+    updatedAt: Date.now()
+  });
 }
