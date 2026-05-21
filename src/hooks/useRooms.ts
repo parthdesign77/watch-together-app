@@ -14,7 +14,7 @@ import {
   updateDoc,
   where
 } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { ROOM_TTL_MS } from "../lib/constants";
 import { db } from "../lib/firebase";
 import type { ChatMessage, ContentItem, Participant, UserProfile, WatchRoom } from "../types";
@@ -301,8 +301,13 @@ export function useRoomReactions(
   roomId?: string,
   onReactionTrigger?: (reaction: { emoji: string; userName: string; id: string }) => void
 ) {
+  const triggerRef = useRef(onReactionTrigger);
   useEffect(() => {
-    if (!roomId || !onReactionTrigger) return;
+    triggerRef.current = onReactionTrigger;
+  }, [onReactionTrigger]);
+
+  useEffect(() => {
+    if (!roomId) return;
     const now = Date.now();
     const q = query(
       collection(db, "rooms", roomId, "reactions"),
@@ -314,7 +319,7 @@ export function useRoomReactions(
         if (change.type === "added") {
           const data = change.doc.data();
           if (data.createdAt && data.createdAt > now - 3000) {
-            onReactionTrigger({
+            triggerRef.current?.({
               id: change.doc.id,
               emoji: data.emoji,
               userName: data.userName || "Someone"
@@ -323,10 +328,11 @@ export function useRoomReactions(
         }
       });
     });
-  }, [roomId, onReactionTrigger]);
+  }, [roomId]);
 }
 
 export async function startReadyCheck(roomId: string, participants: string[]) {
+  console.log("[useRooms] starting ready check for room:", roomId, "participants:", participants);
   const status: Record<string, boolean> = {};
   participants.forEach((uid) => {
     status[uid] = false;
@@ -342,12 +348,14 @@ export async function startReadyCheck(roomId: string, participants: string[]) {
 }
 
 export async function setReadyStatus(roomId: string, uid: string, isReady: boolean) {
+  console.log("[useRooms] setting ready status for room:", roomId, "user:", uid, "isReady:", isReady);
   await updateDoc(doc(db, "rooms", roomId), {
     [`readyCheck.status.${uid}`]: isReady
   });
 }
 
 export async function cancelReadyCheck(roomId: string) {
+  console.log("[useRooms] cancelling ready check for room:", roomId);
   await updateDoc(doc(db, "rooms", roomId), {
     readyCheck: deleteField()
   });

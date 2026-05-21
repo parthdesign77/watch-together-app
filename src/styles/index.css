@@ -130,3 +130,31 @@ button:disabled {
 .safe-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
+
+@keyframes emoji-float-up {
+  0% {
+    transform: translateY(105vh) scale(0.5) rotate(var(--rotate-start, 0deg));
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(85vh) scale(var(--emoji-scale, 1)) rotate(calc(var(--rotate-start) + 15deg));
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-15vh) scale(0.4) rotate(var(--rotate-end, 45deg));
+    opacity: 0;
+  }
+}
+
+.fullscreen-emoji-particle {
+  position: absolute;
+  bottom: 0;
+  will-change: transform, opacity;
+  animation-fill-mode: forwards;
+  pointer-events: none;
+  user-select: none;
+}
+

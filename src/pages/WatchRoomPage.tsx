@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv } from "lucide-react";
 import { Navigate, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +23,7 @@ import {
   useParticipants,
   useRoom,
   sendRoomReaction,
+  useRoomReactions,
   startReadyCheck,
   leaveRoom,
   endRoom
@@ -43,6 +44,46 @@ export function WatchRoomPage() {
   const { profile } = useAuth();
   const { room, loading } = useRoom(roomId);
   const participants = useParticipants(room);
+  const { play } = useUISound();
+
+  interface FullscreenReactionParticle {
+    id: string;
+    emoji: string;
+    x: number;
+    delay: number;
+    duration: number;
+    scale: number;
+    rotateStart: number;
+    rotateEnd: number;
+  }
+
+  const [fullscreenReactions, setFullscreenReactions] = useState<FullscreenReactionParticle[]>([]);
+
+  const handleReactionTrigger = useCallback((reaction: { emoji: string; userName: string; id: string }) => {
+    const particleCount = 5;
+    const particles = Array.from({ length: particleCount }).map((_, idx) => {
+      return {
+        id: `${reaction.id}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        emoji: reaction.emoji,
+        x: 10 + Math.random() * 80,
+        delay: idx * 0.1,
+        duration: 2.2 + Math.random() * 1.2,
+        scale: 0.9 + Math.random() * 0.8,
+        rotateStart: Math.random() * 120 - 60,
+        rotateEnd: Math.random() * 360 - 180
+      };
+    });
+
+    play("select");
+
+    setFullscreenReactions((prev) => [...prev, ...particles]);
+
+    setTimeout(() => {
+      setFullscreenReactions((prev) => prev.filter((p) => !particles.some((pt) => pt.id === p.id)));
+    }, 5000);
+  }, [play]);
+
+  useRoomReactions(room?.id, handleReactionTrigger);
   
   const [inviteOpen, setInviteOpen] = useState(Boolean(params.get("code")));
   const [qualityOpen, setQualityOpen] = useState(false);
@@ -59,7 +100,6 @@ export function WatchRoomPage() {
   const prevRoomRef = useRef<any>(null);
   
   const navigate = useNavigate();
-  const { play } = useUISound();
   const pushToast = useUiStore((state) => state.pushToast);
   
   const isHost = Boolean(room && profile && room.hostId === profile.uid);
@@ -342,6 +382,31 @@ export function WatchRoomPage() {
     void startReadyCheck(room.id, uids);
   };
 
+  // Switch Room back to Normal Voice/Camera Stage (Turn off Video)
+  const handleSwitchToNormalVC = async () => {
+    play("click");
+    try {
+      await updateRoomState(room.id, {
+        videoUrl: "",
+        contentId: "",
+        isPlaying: false,
+        status: "waiting",
+        currentTime: 0
+      });
+      pushToast({
+        title: "Switched to Normal VC",
+        description: "The movie was turned off. Enjoy standard voice and camera chat!",
+        type: "info"
+      });
+    } catch (error) {
+      pushToast({
+        title: "Failed to switch mode",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        type: "error"
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#090909] text-white p-5 flex flex-col gap-5 overflow-x-hidden relative">
       
@@ -409,6 +474,7 @@ export function WatchRoomPage() {
           hasScreenStream={Boolean(webRTC.screenStream)}
           cinemaMode={cinemaMode}
           onToggleCinemaMode={() => setCinemaMode(!cinemaMode)}
+          onTurnOffVideo={handleSwitchToNormalVC}
         />
       </div>
 
@@ -562,6 +628,25 @@ export function WatchRoomPage() {
         isHost={isHost}
         participants={participants}
       />
+
+      {/* Full-Screen Viewport Reaction Particle Overlay */}
+      <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+        {fullscreenReactions.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              left: `${p.x}%`,
+              "--rotate-start": `${p.rotateStart}deg`,
+              "--rotate-end": `${p.rotateEnd}deg`,
+              "--emoji-scale": p.scale,
+              animation: `emoji-float-up ${p.duration}s cubic-bezier(0.1, 0.8, 0.3, 1) ${p.delay}s forwards`
+            } as React.CSSProperties}
+            className="fullscreen-emoji-particle flex items-center justify-center select-none pointer-events-none"
+          >
+            <span className="text-5xl md:text-6xl select-none filter drop-shadow-md">{p.emoji}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

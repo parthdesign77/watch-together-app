@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Crown,
@@ -45,6 +45,7 @@ interface RoomControlsProps {
   hasScreenStream: boolean;
   cinemaMode: boolean;
   onToggleCinemaMode: () => void;
+  onTurnOffVideo?: () => void;
 }
 
 export function RoomControls({
@@ -66,11 +67,27 @@ export function RoomControls({
   hasCameraStream,
   hasScreenStream,
   cinemaMode,
-  onToggleCinemaMode
+  onToggleCinemaMode,
+  onTurnOffVideo
 }: RoomControlsProps) {
   const { play } = useUISound();
   const [copied, setCopied] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    if (showEmojiPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showEmojiPicker]);
 
   const copyRoomCode = () => {
     navigator.clipboard.writeText(room.code);
@@ -137,6 +154,23 @@ export function RoomControls({
                 title="Select Movie"
               >
                 <Film className="h-5 w-5" />
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Turn Off Movie / Switch to VC (Host Only) */}
+          {isHost && room.videoUrl && onTurnOffVideo && (
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                style={{ width: "48px", height: "48px", minWidth: "48px" }}
+                className="bg-neutral-800 hover:bg-neutral-700/80 text-red-400 hover:text-red-300 rounded-[14px] flex items-center justify-center p-0 border border-white/5 shadow-glow-sm"
+                onClick={() => {
+                  play("click");
+                  onTurnOffVideo();
+                }}
+                title="Turn Off Movie / Switch to VC"
+              >
+                <VideoOff className="h-5 w-5" />
               </Button>
             </motion.div>
           )}
@@ -288,10 +322,11 @@ export function RoomControls({
             <AnimatePresence>
               {showEmojiPicker && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: -60, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#111111] border border-white/10 rounded-full px-3 py-1.5 flex gap-2 shadow-2xl z-50"
+                  ref={emojiPickerRef}
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 4, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-[#111111] border border-white/10 rounded-full px-3 py-1.5 flex gap-2 shadow-2xl z-50"
                 >
                   {emojis.map((emoji) => (
                     <motion.button
