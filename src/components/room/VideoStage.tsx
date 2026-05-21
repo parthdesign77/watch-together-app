@@ -155,7 +155,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       
 
       {activeScreenStream ? (
-        <StreamVideo stream={activeScreenStream} muted={Boolean(screenStream)} className="h-full w-full object-contain" />
+        <StreamVideo stream={activeScreenStream} muted={true} className="h-full w-full object-contain" />
       ) : (!room.videoUrl || room.status === "waiting" || room.status === "ended") ? (
         <div className="w-full flex items-center justify-center py-4">
           <div className="flex flex-wrap gap-6 items-center justify-center max-w-full mx-auto">

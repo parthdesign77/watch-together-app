@@ -42,6 +42,21 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const localStreams = useRef<MediaStream[]>([]);
   const processedSignals = useRef<Set<string>>(new Set());
   const analyserCleanup = useRef<(() => void) | null>(null);
+  const candidateQueue = useRef<Record<string, RTCIceCandidateInit[]>>({});
+
+  const processQueuedCandidates = useCallback(async (remoteUid: string) => {
+    const peer = peers.current[remoteUid];
+    if (!peer || !peer.remoteDescription) return;
+    const queue = candidateQueue.current[remoteUid] || [];
+    candidateQueue.current[remoteUid] = [];
+    for (const candidate of queue) {
+      try {
+        await peer.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn("Error adding queued ICE candidate:", err);
+      }
+    }
+  }, []);
 
   const sendSignal = useCallback(
     async (payload: Omit<SignalPayload, "createdAt">) => {
@@ -318,16 +333,22 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
         void (async () => {
           if (signal.type === "offer" && signal.sdp) {
-            await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-            const answer = await peer.createAnswer();
-            await peer.setLocalDescription(answer);
-            await sendSignal({ type: "answer", from: uid, to: signal.from, sdp: answer });
+            try {
+              await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+              const answer = await peer.createAnswer();
+              await peer.setLocalDescription(answer);
+              await sendSignal({ type: "answer", from: uid, to: signal.from, sdp: answer });
+              await processQueuedCandidates(signal.from);
+            } catch (err) {
+              console.error("Error processing SDP offer:", err);
+            }
           }
 
           if (signal.type === "answer" && signal.sdp) {
             if (peer.signalingState === "have-local-offer") {
               try {
                 await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                await processQueuedCandidates(signal.from);
               } catch (err) {
                 console.error("Error setting remote description for answer:", err);
               }
@@ -335,12 +356,23 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           }
 
           if (signal.type === "candidate" && signal.candidate) {
-            await peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            try {
+              if (peer.remoteDescription) {
+                await peer.addIceCandidate(new RTCIceCandidate(signal.candidate));
+              } else {
+                if (!candidateQueue.current[signal.from]) {
+                  candidateQueue.current[signal.from] = [];
+                }
+                candidateQueue.current[signal.from].push(signal.candidate);
+              }
+            } catch (err) {
+              console.warn("Error processing ICE candidate:", err);
+            }
           }
         })();
       });
     });
-  }, [createPeer, roomId, sendSignal, uid]);
+  }, [createPeer, processQueuedCandidates, roomId, sendSignal, uid]);
 
   useEffect(() => {
     if (!roomId || !uid) return;
