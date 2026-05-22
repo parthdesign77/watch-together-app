@@ -1,3 +1,4 @@
+@import "./mobile.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -204,38 +205,4 @@ button:disabled {
   perspective: 1000px;
   will-change: transform, opacity;
 }
-
-/* Custom premium tap animations & transitions overrides for mobile */
-@media (max-width: 1024px) {
-  * {
-    -webkit-tap-highlight-color: transparent;
-  }
-  
-  body {
-    min-height: 100dvh;
-    background: 
-      radial-gradient(circle at 18% 16%, rgba(220, 38, 38, 0.24), transparent 34%),
-      radial-gradient(circle at 82% 12%, rgba(127, 29, 29, 0.22), transparent 32%),
-      linear-gradient(135deg, #030303 0%, #090909 52%, #111111 100%) !important;
-    background-attachment: scroll !important;
-    background-size: cover !important;
-  }
-
-  .glass {
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  }
-  
-  /* Disable hover translations on mobile to prevent jitter and layout jump */
-  .glass:hover {
-    transform: none !important;
-    box-shadow: 0 20px 80px rgba(0, 0, 0, 0.26) !important;
-    border-color: var(--stroke) !important;
-  }
-  
-  /* Smooth scroll deceleration for iOS */
-  .overflow-y-auto {
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
 

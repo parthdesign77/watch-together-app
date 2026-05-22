@@ -30,6 +30,9 @@ export function useUISound() {
 
   const play = useCallback((type: UISoundType) => {
     try {
+      const isMobile = typeof window !== "undefined" && (window.matchMedia("(max-width: 1024px)").matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
+      if (isMobile) return;
+
       const ctx = getAudioContext();
       const now = ctx.currentTime;
 

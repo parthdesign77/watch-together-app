@@ -1,0 +1,83 @@
+/* ==========================================================================
+   WATCH TOGETHER - PREMIUM MOBILE OPTIMIZATIONS STYLESHEET
+   Target Viewport: <= 1024px (Tablets, Android Phones, iPhones, Foldables)
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  /* Prevent blue tap highlights and default browser click delays */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Full viewport adjustment on tall devices (Poco X5 Pro 5G, iPhone Pro Max) */
+  body {
+    min-height: 100dvh;
+    height: 100dvh;
+    background: 
+      radial-gradient(circle at 18% 16%, rgba(220, 38, 38, 0.24), transparent 34%),
+      radial-gradient(circle at 82% 12%, rgba(127, 29, 29, 0.22), transparent 32%),
+      linear-gradient(135deg, #030303 0%, #090909 52%, #111111 100%) !important;
+    background-attachment: scroll !important;
+    background-size: cover !important;
+    overflow-x: hidden;
+  }
+
+  /* Optimize glass elements for performance and responsive transitions */
+  .glass {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  /* Disable hover animations and translate scale triggers to prevent lag and jitter */
+  .glass:hover {
+    transform: none !important;
+    box-shadow: 0 20px 80px rgba(0, 0, 0, 0.26) !important;
+    border-color: var(--stroke) !important;
+  }
+
+  /* Enforce native-feel elastic scrolling on containers */
+  .overflow-y-auto, 
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Notch safe areas support */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 12px) !important;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 12px) !important;
+  }
+
+  .pb-safe-bottom {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Aspect-ratio contain overlays without black bars */
+  video {
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* Mobile-specific controls panel layout sizing adjustments */
+  .mobile-drawer-header {
+    height: 4px;
+    width: 40px;
+    background-color: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    margin: 8px auto;
+  }
+
+  /* Prevent body scrolling when slide-up panels are active */
+  body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+
+  /* Active speaking state adjustments (border glow transitions) */
+  .participant-card {
+    transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+}

@@ -141,8 +141,8 @@ export function MobileControls({
         </div>
       </div>
 
-      {/* Main Bottom Control Grid (6 equally-spaced, beautifully-sized buttons) */}
-      <div className="grid grid-cols-6 gap-2 max-w-md mx-auto items-center justify-items-center py-1">
+      {/* Main Bottom Control Grid (5 equally-spaced, beautifully-sized buttons) */}
+      <div className="grid grid-cols-5 gap-2 max-w-md mx-auto items-center justify-items-center py-1">
         
         {/* 1. Mic Control */}
         <button
@@ -176,27 +176,7 @@ export function MobileControls({
           {hasCameraStream ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
         </button>
 
-        {/* 3. Screen Share Control */}
-        <button
-          onClick={() => {
-            play("click");
-            if (hasScreenStream) {
-              onStopScreen();
-            } else {
-              onShareScreen("entire-screen");
-            }
-          }}
-          className={`h-12 w-12 rounded-full flex items-center justify-center border transition-all active:scale-90 cursor-pointer ${
-            hasScreenStream
-              ? "bg-purple-600 border-purple-500 text-white shadow-[0_0_12px_rgba(147,51,234,0.35)]"
-              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10"
-          }`}
-          aria-label={hasScreenStream ? "Stop Sharing" : "Share Screen"}
-        >
-          <MonitorUp className="h-5 w-5" />
-        </button>
-
-        {/* 4. Chat Control */}
+        {/* 3. Chat Control */}
         <button
           onClick={() => {
             play("click");
