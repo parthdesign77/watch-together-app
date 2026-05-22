@@ -71,7 +71,7 @@ export async function createWatchRoom(
     hostId: profile.uid,
     roomName: content ? `${content.title} Watch Party` : `${profile.name}'s Watch Room`,
     videoUrl: videoUrl || "",
-    contentType: content?.type || (videoUrl ? "mp4" : "hls"),
+    contentType: content?.type || (videoUrl ? (/youtube\.com|youtu\.be/.test(videoUrl) ? "youtube" : "mp4") : "hls"),
     currentTime: 0,
     isPlaying: false,
     isScreenSharing: false,
@@ -80,7 +80,7 @@ export async function createWatchRoom(
     participants: {
       [profile.uid]: participant
     },
-    status: "waiting",
+    status: videoUrl ? "paused" : "waiting",
     isPrivate: roomType === "private",
     quality: defaultQuality,
     maxQuality: maxQuality,

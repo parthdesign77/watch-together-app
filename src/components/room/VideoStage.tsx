@@ -30,7 +30,7 @@ function isYouTube(url: string) {
 }
 
 function youtubeEmbed(url: string) {
-  const match = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
+  const match = url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/|live\/)([^&?/]+)/);
   return match ? `https://www.youtube.com/embed/${match[1]}?enablejsapi=1&rel=0` : url;
 }
 
