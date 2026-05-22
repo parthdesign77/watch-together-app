@@ -78,9 +78,12 @@ export function AppShell() {
               <Menu className="h-5 w-5" />
             </Button>
             <NavLink to="/dashboard" className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-cyan via-premium to-movie shadow-glow">
-                <MonitorPlay className="h-5 w-5 text-white" />
-              </span>
+              <img 
+                src="/logo.png" 
+                alt="Watch Together Logo" 
+                className="h-9 w-auto object-contain drop-shadow-[0_0_8px_rgba(255,61,71,0.5)] transition-transform hover:scale-105 duration-300"
+                style={{ maxHeight: "36px" }}
+              />
               <span>
                 <span className="block font-display text-base font-extrabold leading-4">Watch Together</span>
                 <span className="text-xs text-muted">Cinema rooms in sync</span>
@@ -228,9 +231,12 @@ export function AppShell() {
             >
               <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10 select-none">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-cyan via-premium to-movie shadow-glow">
-                    <MonitorPlay className="h-4.5 w-4.5 text-white" />
-                  </span>
+                  <img 
+                    src="/logo.png" 
+                    alt="Watch Together Logo" 
+                    className="h-8 w-auto object-contain drop-shadow-[0_0_6px_rgba(255,61,71,0.5)]"
+                    style={{ maxHeight: "32px" }}
+                  />
                   <span>
                     <span className="block font-display text-sm font-extrabold leading-4 text-white">Watch Together</span>
                     <span className="text-[10px] text-muted font-semibold">Cinema rooms in sync</span>

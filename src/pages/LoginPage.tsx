@@ -72,9 +72,12 @@ export function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/76 to-transparent" />
         <div className="relative z-10 flex h-full flex-col justify-end p-12">
           <div className="mb-8 flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br from-cyan via-premium to-movie">
-              <MonitorPlay className="h-6 w-6" />
-            </span>
+            <img 
+              src="/logo.png" 
+              alt="Watch Together Logo" 
+              className="h-10 w-auto object-contain drop-shadow-[0_0_8px_rgba(255,61,71,0.5)]"
+              style={{ maxHeight: "40px" }}
+            />
             <span className="font-display text-2xl font-black">Watch Together</span>
           </div>
           <h1 className="max-w-2xl font-display text-6xl font-black leading-none">Rooms that stay in sync, even when the night gets loud.</h1>
@@ -86,9 +89,12 @@ export function LoginPage() {
       <section className="flex items-center justify-center px-4 py-10">
         <div className="glass cinema-border w-full max-w-md rounded-lg p-6">
           <Link to="/" className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-cyan via-premium to-movie">
-              <MonitorPlay className="h-5 w-5" />
-            </span>
+            <img 
+              src="/logo.png" 
+              alt="Watch Together Logo" 
+              className="h-9 w-auto object-contain drop-shadow-[0_0_6px_rgba(255,61,71,0.5)]"
+              style={{ maxHeight: "36px" }}
+            />
             <span className="font-display font-black">Watch Together</span>
           </Link>
 

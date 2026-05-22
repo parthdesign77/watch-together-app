@@ -25,9 +25,12 @@ export function LandingPage() {
       <header className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-ink/62 backdrop-blur-2xl">
         <div className="flex h-16 w-full items-center justify-between px-6 md:px-12">
           <Link to="/" className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-cyan via-premium to-movie">
-              <MonitorPlay className="h-5 w-5" />
-            </span>
+            <img 
+              src="/logo.png" 
+              alt="Watch Together Logo" 
+              className="h-9 w-auto object-contain drop-shadow-[0_0_8px_rgba(255,61,71,0.5)] transition-transform hover:scale-105 duration-300"
+              style={{ maxHeight: "36px" }}
+            />
             <span className="font-display font-black">Watch Together</span>
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-semibold text-muted md:flex">
