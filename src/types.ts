@@ -43,6 +43,15 @@ export interface Participant {
   premiumBadge?: boolean;
 }
 
+export interface JoinRequest {
+  uid: string;
+  name: string;
+  avatar: string;
+  avatarColor: string;
+  requestedAt: number;
+  status: "pending" | "approved" | "rejected";
+}
+
 export interface WatchRoom {
   id: string;
   code: string;
@@ -58,6 +67,7 @@ export interface WatchRoom {
   screenShareHost?: string | null;
   roomType: "public" | "private";
   participants: Record<string, Participant>;
+  joinRequests?: Record<string, JoinRequest>;
   status: RoomStatus;
   isPrivate: boolean;
   password?: string;

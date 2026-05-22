@@ -341,13 +341,35 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     try {
       if (isMobileDevice) {
         console.log("[WebRTC] Mobile device detected during capture - using direct robust constraints");
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: false, // Bypassed for native hardware processing
-            autoGainControl: true
+        const constraints = { 
+            audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+            } 
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        // Force AudioContext to wake up (Android Chrome security requirement)
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const audioCtx = new AudioContextClass();
+          if (audioCtx.state === 'suspended') {
+              await audioCtx.resume();
+              console.log("AudioContext woken up!");
           }
-        });
+        }
+
+        // Play audio on the hidden audio element
+        const audio = document.getElementById('myAudioElement') as HTMLAudioElement | null;
+        if (audio) {
+          audio.srcObject = stream;
+          audio.muted = true; // MUST be muted or browser blocks auto-play
+          await audio.play().catch((playErr) => {
+            console.warn("Failed to play on myAudioElement:", playErr);
+          });
+          console.log("Mic stream successfully started!");
+        }
       } else {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: {

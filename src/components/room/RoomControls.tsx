@@ -236,6 +236,7 @@ export function RoomControls({
           {/* Mute Button (Only active when in Voice) */}
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
+              id="micBtn"
               style={{ width: "48px", height: "48px", minWidth: "48px" }}
               variant={muted ? "danger" : "secondary"}
               className={`rounded-[14px] flex items-center justify-center p-0 border border-white/5 ${

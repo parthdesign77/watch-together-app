@@ -115,40 +115,99 @@ export async function joinRoomById(roomId: string, profile: UserProfile) {
   }
   const roomData = roomSnap.data() as WatchRoom;
   
-  // If the user is already in the room, let them in (allow rejoining without throwing a capacity error)
+  const isHost = roomData.hostId === profile.uid;
   const isAlreadyParticipant = roomData.participants && !!roomData.participants[profile.uid];
   
-  if (!isAlreadyParticipant) {
-    const hostId = roomData.hostId;
-    const host = roomData.participants?.[hostId];
-    const hostPlan = host?.subscriptionPlan || "free";
-    
-    // Calculate current participant count
-    const participantCount = Object.keys(roomData.participants || {}).length;
-    
-    // Determine limits: Free = 2, Standard = 5, Premium = 20
-    let limitValue = 2;
-    if (hostPlan === "premium") {
-      limitValue = 20;
-    } else if (hostPlan === "standard") {
-      limitValue = 5;
-    }
-    
-    if (participantCount >= limitValue) {
-      throw new Error(
-        `This room is at full capacity. The host's ${hostPlan.toUpperCase()} plan allows a maximum of ${limitValue} participants.`
-      );
-    }
+  if (isHost || isAlreadyParticipant) {
+    await updateDoc(roomRef, {
+      [`participants.${profile.uid}`]: participantFromProfile(profile, isHost),
+      updatedAt: Date.now(),
+      updatedAtServer: serverTimestamp()
+    });
+    await updateDoc(doc(db, "users", profile.uid), {
+      recentRooms: arrayUnion(roomId),
+      updatedAt: serverTimestamp()
+    });
+    return;
+  }
+
+  const hostId = roomData.hostId;
+  const host = roomData.participants?.[hostId];
+  const hostPlan = host?.subscriptionPlan || "free";
+  
+  const participantCount = Object.keys(roomData.participants || {}).length;
+  
+  let limitValue = 2;
+  if (hostPlan === "premium") {
+    limitValue = 20;
+  } else if (hostPlan === "standard") {
+    limitValue = 5;
+  }
+  
+  if (participantCount >= limitValue) {
+    throw new Error(
+      `This room is at full capacity. The host's ${hostPlan.toUpperCase()} plan allows a maximum of ${limitValue} participants.`
+    );
   }
 
   await updateDoc(roomRef, {
-    [`participants.${profile.uid}`]: participantFromProfile(profile),
+    [`joinRequests.${profile.uid}`]: {
+      uid: profile.uid,
+      name: profile.name,
+      avatar: profile.avatar,
+      avatarColor: profile.avatarColor,
+      requestedAt: Date.now(),
+      status: "pending"
+    },
     updatedAt: Date.now(),
     updatedAtServer: serverTimestamp()
   });
-  await updateDoc(doc(db, "users", profile.uid), {
+}
+
+export async function approveJoinRequest(
+  roomId: string,
+  requestUser: { uid: string; name: string; avatar: string; avatarColor: string; subscriptionPlan?: string }
+) {
+  const roomRef = doc(db, "rooms", roomId);
+  const roomSnap = await getDoc(roomRef);
+  if (!roomSnap.exists()) return;
+  const roomData = roomSnap.data() as WatchRoom;
+
+  const participant: Participant = {
+    uid: requestUser.uid,
+    name: requestUser.name,
+    avatar: requestUser.avatar,
+    avatarColor: requestUser.avatarColor,
+    joinedAt: Date.now(),
+    isHost: false,
+    isMuted: false,
+    isSpeaking: false,
+    isBuffering: false,
+    isScreenSharing: false,
+    isCameraOn: false,
+    connectionQuality: "excellent",
+    subscriptionPlan: (requestUser.subscriptionPlan || "free") as any
+  };
+
+  await updateDoc(roomRef, {
+    [`participants.${requestUser.uid}`]: participant,
+    [`joinRequests.${requestUser.uid}`]: deleteField(),
+    updatedAt: Date.now(),
+    updatedAtServer: serverTimestamp()
+  });
+
+  await updateDoc(doc(db, "users", requestUser.uid), {
     recentRooms: arrayUnion(roomId),
     updatedAt: serverTimestamp()
+  });
+}
+
+export async function rejectJoinRequest(roomId: string, userId: string) {
+  const roomRef = doc(db, "rooms", roomId);
+  await updateDoc(roomRef, {
+    [`joinRequests.${userId}.status`]: "rejected",
+    updatedAt: Date.now(),
+    updatedAtServer: serverTimestamp()
   });
 }
 

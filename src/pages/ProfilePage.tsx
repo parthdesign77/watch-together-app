@@ -25,8 +25,8 @@ export function ProfilePage() {
     { name: "Cyber Punk Anya", url: "https://api.dicebear.com/7.x/adventurer/svg?seed=Anya" },
     { name: "Cool Nerd Jack", url: "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack" },
     { name: "Retro Girl Zoe", url: "https://api.dicebear.com/7.x/adventurer/svg?seed=Zoe" },
-    { name: "Future Robo Mech", url: "https://api.dicebear.com/7.x/bottts/svg?seed=Robo1" },
-    { name: "Cyber Aurora Kitty", url: "https://api.dicebear.com/7.x/bottts/svg?seed=Kitty" },
+    { name: "Cyber Hunter Liam", url: "https://api.dicebear.com/7.x/adventurer/svg?seed=Liam" },
+    { name: "Cosmic Spark Aurora", url: "https://api.dicebear.com/7.x/adventurer/svg?seed=Aurora" },
     { name: "Neon Space Explorer", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80" },
     { name: "Cybernetic Aurora", url: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=150&auto=format&fit=crop&q=80" }
   ];

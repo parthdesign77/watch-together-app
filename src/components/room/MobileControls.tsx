@@ -146,6 +146,7 @@ export function MobileControls({
         
         {/* 1. Mic Control */}
         <button
+          id="micBtn"
           onClick={() => {
             play("click");
             onToggleMute();
@@ -223,6 +224,7 @@ export function MobileControls({
         </button>
 
       </div>
+      <audio id="myAudioElement" muted style={{ display: 'none' }} />
     </div>
   );
 }

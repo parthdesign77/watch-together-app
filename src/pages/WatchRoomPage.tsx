@@ -29,7 +29,9 @@ import {
   startReadyCheck,
   leaveRoom,
   endRoom,
-  useRoomMessages
+  useRoomMessages,
+  approveJoinRequest,
+  rejectJoinRequest
 } from "../hooks/useRooms";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { useUiStore } from "../store/uiStore";
@@ -354,15 +356,18 @@ export function WatchRoomPage() {
 
   useEffect(() => {
     if (!room || !profile || joined) return;
-    if (!room.participants?.[profile.uid]) {
-      void joinRoomById(room.id, profile)
-        .then(() => {
-          setJoined(true);
-          pushToast({ title: "Joined synchronized room", description: "Playback, chat history, and participant state restored.", type: "success" });
-        })
-        .catch((error) => pushToast({ title: "Could not join room", description: error.message, type: "error" }));
+    const isHostUser = room.hostId === profile.uid;
+    const isPart = room.participants && !!room.participants[profile.uid];
+
+    if (!isHostUser && !isPart) {
+      const request = room.joinRequests?.[profile.uid];
+      if (!request) {
+        void joinRoomById(room.id, profile)
+          .catch((error) => pushToast({ title: "Could not request to join room", description: error.message, type: "error" }));
+      }
     } else {
       setJoined(true);
+      pushToast({ title: "Joined synchronized room", description: "Playback, chat history, and participant state restored.", type: "success" });
     }
   }, [joined, profile, pushToast, room]);
 
@@ -532,19 +537,11 @@ export function WatchRoomPage() {
   if (loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#090909] text-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <img 
-              src="/logo.png" 
-              alt="Watch Together" 
-              className="h-16 w-auto object-contain animate-pulse drop-shadow-[0_0_15px_rgba(255,61,71,0.6)]" 
-            />
-          </div>
-          <div className="glass flex items-center gap-2.5 rounded-[16px] px-4 py-2 border border-white/5 bg-[#111111]/80 backdrop-blur-md shadow-lg">
-            <Loader2 className="h-4 w-4 animate-spin text-[#ff3d47]" />
-            <span className="font-bold text-xs tracking-wide text-neutral-300">Synchronizing theater feed...</span>
-          </div>
-        </div>
+        <img 
+          src="/logo.png" 
+          alt="Watch Together" 
+          className="h-16 w-auto object-contain animate-rotate-logo" 
+        />
       </div>
     );
   }
@@ -568,6 +565,56 @@ export function WatchRoomPage() {
   }
 
   if (!profile) return <Navigate to="/login" replace />;
+
+  const isParticipant = Boolean(room?.participants?.[profile?.uid]);
+
+  if (!isHost && !isParticipant) {
+    const myRequest = room.joinRequests?.[profile.uid];
+    const requestStatus = myRequest?.status || "pending";
+
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#090909]">
+        <div className="glass rounded-[28px] p-8 border border-white/5 bg-[#111111] max-w-md text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#ff3d47]/20 rounded-full blur-[80px]" />
+          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[#ff3d47]/20 rounded-full blur-[80px]" />
+
+          <div className="relative z-10">
+            {requestStatus === "pending" ? (
+              <>
+                <img 
+                  src="/logo.png" 
+                  alt="Watch Together" 
+                  className="h-20 w-auto object-contain mx-auto mb-6 animate-rotate-logo" 
+                />
+                <h1 className="font-display text-2xl font-black text-white mb-2">Awaiting Host Approval</h1>
+                <p className="mt-2 text-sm text-neutral-400 mb-6">
+                  Your request to join the room is pending. Please wait for the host to accept your entry.
+                </p>
+                <div className="inline-flex items-center gap-2.5 rounded-full px-4 py-2 border border-white/5 bg-white/5 backdrop-blur-md text-neutral-300">
+                  <span className="w-2 h-2 rounded-full bg-[#ff3d47] animate-ping" />
+                  <span className="text-xs font-semibold tracking-wider">Awaiting response...</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <ShieldAlert className="h-16 w-16 text-[#ff3d47] mx-auto mb-6 drop-shadow-[0_0_15px_rgba(255,61,71,0.4)]" />
+                <h1 className="font-display text-2xl font-black text-white mb-2">Request Rejected</h1>
+                <p className="mt-2 text-sm text-neutral-400 mb-6">
+                  The host has declined your request to join this private watch party.
+                </p>
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="w-full bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 px-6 font-bold border-none transition-all duration-300 shadow-[0_4px_20px_rgba(255,61,71,0.3)]"
+                >
+                  Return to Dashboard
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const currentRoom = room;
   const currentProfile = profile;
@@ -704,11 +751,105 @@ export function WatchRoomPage() {
     }
   };
 
+  const pendingRequests = useMemo(() => {
+    if (!room?.joinRequests) return [];
+    return Object.values(room.joinRequests).filter((req) => req.status === "pending");
+  }, [room?.joinRequests]);
+
+  const handleApproveRequest = async (reqUser: any) => {
+    play("click");
+    try {
+      await approveJoinRequest(room.id, reqUser);
+      pushToast({
+        title: "Request Approved",
+        description: `${reqUser.name} has been admitted to the room.`,
+        type: "success"
+      });
+    } catch (err) {
+      pushToast({
+        title: "Action Failed",
+        description: err instanceof Error ? err.message : "Failed to approve request.",
+        type: "error"
+      });
+    }
+  };
+
+  const handleRejectRequest = async (userId: string, userName: string) => {
+    play("click");
+    try {
+      await rejectJoinRequest(room.id, userId);
+      pushToast({
+        title: "Request Rejected",
+        description: `Rejected entry request from ${userName}.`,
+        type: "info"
+      });
+    } catch (err) {
+      pushToast({
+        title: "Action Failed",
+        description: err instanceof Error ? err.message : "Failed to reject request.",
+        type: "error"
+      });
+    }
+  };
+
   return (
     <div className={`bg-[#090909] text-white p-3 sm:p-5 flex flex-col gap-3 sm:gap-5 overflow-x-hidden relative ${
       cinemaMode ? "h-[100dvh] max-h-[100dvh] overflow-hidden" : "min-h-[100dvh] xl:h-screen xl:max-h-screen xl:overflow-hidden"
     } ${isMobile ? "pb-24" : ""}`}>
       
+      {/* Floating Host Approval Banner/Toast Panel */}
+      {isHost && pendingRequests.length > 0 && (
+        <div className="fixed top-6 right-6 z-50 w-80 max-w-sm flex flex-col gap-3 pointer-events-auto">
+          <AnimatePresence>
+            {pendingRequests.map((req) => (
+              <motion.div
+                key={req.uid}
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                className="glass rounded-2xl border border-white/10 bg-[#111111]/95 backdrop-blur-md shadow-2xl p-4 flex flex-col gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm border border-white/10 shadow-inner"
+                    style={{ backgroundColor: req.avatarColor || "#ff3d47" }}
+                  >
+                    {req.avatar ? (
+                      <img src={req.avatar} alt={req.name} className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      req.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Join Request</p>
+                    <p className="text-sm font-extrabold text-white truncate">{req.name}</p>
+                  </div>
+                </div>
+                
+                <p className="text-xs text-neutral-400">
+                  Wants to join your private watch party.
+                </p>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleApproveRequest(req)}
+                    className="flex-1 bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-9 text-xs font-extrabold border-none transition-all cursor-pointer shadow-[0_2px_10px_rgba(255,61,71,0.25)] font-sans"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleRejectRequest(req.uid, req.name)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 text-white rounded-xl h-9 text-xs font-extrabold border border-white/5 hover:border-white/10 transition-all cursor-pointer font-sans"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+
       {/* Floating Exit Cinema Mode Button (Always visible in Cinema Mode) */}
       <AnimatePresence>
         {cinemaMode && (

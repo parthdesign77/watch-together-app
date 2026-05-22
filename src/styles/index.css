@@ -203,3 +203,13 @@ button:disabled {
   will-change: transform, opacity;
 }
 
+@keyframes rotate-logo {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-rotate-logo {
+  animation: rotate-logo 3.5s linear infinite;
+  filter: drop-shadow(0 0 25px rgba(255, 61, 71, 0.65));
+}
+
