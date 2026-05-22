@@ -239,54 +239,28 @@ export function RoomControls({
             </Button>
           </motion.div>
 
-          {/* Mute Button */}
-          <motion.div whileHover={!muted ? { scale: 1.05 } : {}} whileTap={!muted ? { scale: 0.95 } : {}}>
+          {/* Mute/Unmute Toggle Button */}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
-              id="muteBtn"
+              id="micBtn"
               style={{ width: "48px", height: "48px", minWidth: "48px" }}
               variant={muted ? "danger" : "secondary"}
               className={`rounded-[14px] flex items-center justify-center p-0 border border-white/5 transition-all duration-300 ${
                 muted ? "bg-[#ff3d47]/20 border-[#ff3d47]/30 text-[#ff3d47]" : "bg-neutral-800 hover:bg-neutral-700 text-white"
               }`}
               onClick={() => {
-                if (!muted) {
-                  play("mic-mute");
-                  onToggleMute(true);
-                }
+                play(muted ? "mic-unmute" : "mic-mute");
+                onToggleMute(!muted);
               }}
-              disabled={muted}
-              title="Mute Mic"
-              aria-label="Mute Mic"
+              title={muted ? "Unmute Mic" : "Mute Mic"}
+              aria-label={muted ? "Unmute Mic" : "Mute Mic"}
             >
-              <MicOff className="h-5 w-5" />
+              {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </Button>
           </motion.div>
 
-          {/* Unmute Button */}
-          <motion.div whileHover={muted ? { scale: 1.05 } : {}} whileTap={muted ? { scale: 0.95 } : {}}>
-            <Button
-              id="unmuteBtn"
-              style={{ width: "48px", height: "48px", minWidth: "48px" }}
-              variant={!muted ? "success" : "secondary"}
-              className={`rounded-[14px] flex items-center justify-center p-0 border border-white/5 transition-all duration-300 ${
-                !muted ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400" : "bg-neutral-800 hover:bg-neutral-700 text-white"
-              }`}
-              onClick={() => {
-                if (muted) {
-                  play("mic-unmute");
-                  onToggleMute(false);
-                }
-              }}
-              disabled={!muted}
-              title="Unmute Mic"
-              aria-label="Unmute Mic"
-            >
-              <Mic className="h-5 w-5" />
-            </Button>
-          </motion.div>
-
-          {/* Deafen Button */}
-          <motion.div whileHover={!deafened ? { scale: 1.05 } : {}} whileTap={!deafened ? { scale: 0.95 } : {}}>
+          {/* Deafen/Undeafen Toggle Button */}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
               id="deafenBtn"
               style={{ width: "48px", height: "48px", minWidth: "48px" }}
@@ -295,39 +269,14 @@ export function RoomControls({
                 deafened ? "bg-[#ff3d47]/20 border-[#ff3d47]/30 text-[#ff3d47]" : "bg-neutral-800 hover:bg-neutral-700 text-white"
               }`}
               onClick={() => {
-                if (!deafened) {
-                  play("deafen");
-                  setDeafened(true);
-                }
+                const nextState = !deafened;
+                play(nextState ? "deafen" : "undeafen");
+                setDeafened(nextState);
               }}
-              disabled={deafened}
-              title="Deafen Audio"
-              aria-label="Deafen Audio – Mute all incoming audio"
+              title={deafened ? "Undeafen Audio" : "Deafen Audio"}
+              aria-label={deafened ? "Undeafen Audio – Receive incoming audio" : "Deafen Audio – Mute all incoming audio"}
             >
-              <VolumeX className="h-5 w-5" />
-            </Button>
-          </motion.div>
-
-          {/* Undeafen Button */}
-          <motion.div whileHover={deafened ? { scale: 1.05 } : {}} whileTap={deafened ? { scale: 0.95 } : {}}>
-            <Button
-              id="undeafenBtn"
-              style={{ width: "48px", height: "48px", minWidth: "48px" }}
-              variant={!deafened ? "success" : "secondary"}
-              className={`rounded-[14px] flex items-center justify-center p-0 border border-white/5 transition-all duration-300 ${
-                !deafened ? "bg-emerald-600/20 border-emerald-500/30 text-emerald-400" : "bg-neutral-800 hover:bg-neutral-700 text-white"
-              }`}
-              onClick={() => {
-                if (deafened) {
-                  play("undeafen");
-                  setDeafened(false);
-                }
-              }}
-              disabled={!deafened}
-              title="Undeafen Audio"
-              aria-label="Undeafen Audio – Receive incoming audio"
-            >
-              <Headphones className="h-5 w-5" />
+              {deafened ? <VolumeX className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
             </Button>
           </motion.div>
 

@@ -147,91 +147,44 @@ export function MobileControls({
         </div>
       </div>
 
-      {/* Main Bottom Control Grid (8 equally-spaced, beautifully-sized buttons) */}
-      <div className="grid grid-cols-8 gap-1 xs:gap-1.5 max-w-lg mx-auto items-center justify-items-center py-1 px-1 xs:px-2 sm:px-4">
+      {/* Main Bottom Control Grid (6 equally-spaced, beautifully-sized buttons) */}
+      <div className="grid grid-cols-6 gap-1.5 xs:gap-2 max-w-md mx-auto items-center justify-items-center py-1 px-1 xs:px-2 sm:px-4">
         
-        {/* 1. Mute Mic */}
+        {/* 1. Mic Control */}
         <button
-          id="muteBtn"
+          id="micBtn"
           onClick={() => {
-            if (!muted) {
-              play("mic-mute");
-              onToggleMute(true);
-            }
+            play(muted ? "mic-unmute" : "mic-mute");
+            onToggleMute(!muted);
           }}
-          disabled={muted}
-          className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all duration-300 ${
+          className={`h-12 w-12 rounded-full flex flex-col items-center justify-center border transition-all duration-300 active:scale-90 cursor-pointer ${
             muted
-              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)] opacity-60 cursor-not-allowed"
-              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10 active:scale-90 cursor-pointer"
+              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)]"
+              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10"
           }`}
-          aria-label="Mute Mic"
-          title="Mute Mic"
+          aria-label={muted ? "Unmute Mic" : "Mute Mic"}
+          title={muted ? "Unmute Mic" : "Mute Mic"}
         >
-          <MicOff className="h-5 w-5" />
+          {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </button>
 
-        {/* 2. Unmute Mic */}
-        <button
-          id="unmuteBtn"
-          onClick={() => {
-            if (muted) {
-              play("mic-unmute");
-              onToggleMute(false);
-            }
-          }}
-          disabled={!muted}
-          className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all duration-300 ${
-            !muted
-              ? "bg-emerald-600/15 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)] opacity-60 cursor-not-allowed"
-              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10 active:scale-90 cursor-pointer"
-          }`}
-          aria-label="Unmute Mic"
-          title="Unmute Mic"
-        >
-          <Mic className="h-5 w-5" />
-        </button>
-
-        {/* 3. Deafen Audio */}
+        {/* 2. Deafen Control */}
         <button
           id="deafenBtn"
           onClick={() => {
-            if (!deafened) {
-              play("deafen");
-              setDeafened(true);
-            }
+            const nextState = !deafened;
+            play(nextState ? "deafen" : "undeafen");
+            setDeafened(nextState);
           }}
-          disabled={deafened}
-          className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all duration-300 ${
+          className={`h-12 w-12 rounded-full flex flex-col items-center justify-center border transition-all duration-300 active:scale-90 cursor-pointer ${
             deafened
-              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)] opacity-60 cursor-not-allowed"
-              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10 active:scale-90 cursor-pointer"
+              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)]"
+              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10"
           }`}
-          aria-label="Deafen Audio – Mute all incoming audio"
-          title="Deafened – You can't hear others"
+          aria-label={deafened ? "Undeafen Audio – Receive incoming audio" : "Deafen Audio – Mute all incoming audio"}
+          title={deafened ? "Deafened – You can't hear others" : "Deafen Audio"}
         >
-          <VolumeX className="h-5 w-5" />
-        </button>
-
-        {/* 4. Undeafen Audio */}
-        <button
-          id="undeafenBtn"
-          onClick={() => {
-            if (deafened) {
-              play("undeafen");
-              setDeafened(false);
-            }
-          }}
-          disabled={!deafened}
-          className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all duration-300 ${
-            !deafened
-              ? "bg-emerald-600/15 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)] opacity-60 cursor-not-allowed"
-              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10 active:scale-90 cursor-pointer"
-          }`}
-          aria-label="Undeafen Audio – Receive incoming audio"
-          title="Undeafen Audio"
-        >
-          <Headphones className="h-5 w-5" />
+          {deafened ? <VolumeX className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
         </button>
 
         {/* 5. Camera or Screen Share Control */}
