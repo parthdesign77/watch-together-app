@@ -6,10 +6,11 @@ interface LeaveRoomModalProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onLeaveOnly?: () => void;
   isHost: boolean;
 }
 
-export function LeaveRoomModal({ open, onClose, onConfirm, isHost }: LeaveRoomModalProps) {
+export function LeaveRoomModal({ open, onClose, onConfirm, onLeaveOnly, isHost }: LeaveRoomModalProps) {
   return (
     <AnimatePresence>
       {open && (
@@ -27,26 +28,35 @@ export function LeaveRoomModal({ open, onClose, onConfirm, isHost }: LeaveRoomMo
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <h2 className="font-display text-xl font-black text-white">
-                {isHost ? "End Watch Room?" : "Leave Watch Party?"}
+                {isHost ? "Leave Watch Room?" : "Leave Watch Party?"}
               </h2>
             </div>
 
             <p className="text-sm text-neutral-400 mb-6 leading-relaxed">
               {isHost
-                ? "Ending the room will close the party and disconnect all participants. Playback and screenshares will be stopped for everyone."
+                ? "As the Host, you can either pass host privileges to another member and leave, or end the room completely for all participants."
                 : "Leaving means you'll be disconnected from the movie stream and voice chat. You can rejoin using the room's invite code."}
             </p>
 
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
               <Button
                 variant="secondary"
                 onClick={onClose}
-                className="bg-neutral-800 hover:bg-neutral-750 text-white rounded-xl border border-white/5 h-11 px-5"
+                className="bg-neutral-800 hover:bg-neutral-750 text-white rounded-xl border border-white/5 h-11 px-5 order-last sm:order-first"
               >
                 Cancel
               </Button>
+              {isHost && onLeaveOnly && (
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl h-11 px-5 font-bold flex items-center justify-center gap-2 border-none shadow-glow-sm"
+                  onClick={onLeaveOnly}
+                >
+                  <LogOut className="h-4.5 w-4.5" />
+                  <span>Just Leave</span>
+                </Button>
+              )}
               <Button
-                className="bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 px-5 font-bold flex items-center gap-2 border-none shadow-glow-sm"
+                className="bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 px-5 font-bold flex items-center justify-center gap-2 border-none shadow-glow-sm"
                 onClick={onConfirm}
               >
                 {isHost ? (

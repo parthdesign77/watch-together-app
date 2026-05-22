@@ -94,11 +94,15 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       };
 
       peer.ontrack = (event) => {
-        const [stream] = event.streams;
-        if (!stream) return;
+        let stream = event.streams[0];
+        if (!stream) {
+          stream = new MediaStream([event.track]);
+        }
+        const originalStreamId = stream.id;
+        const freshStream = new MediaStream(stream.getTracks());
         setRemoteStreams((current) => {
-          const withoutExisting = current.filter((item) => !(item.uid === remoteUid && item.id === stream.id));
-          return [...withoutExisting, { uid: remoteUid, id: stream.id, stream }];
+          const withoutExisting = current.filter((item) => !(item.uid === remoteUid && item.id === originalStreamId));
+          return [...withoutExisting, { uid: remoteUid, id: originalStreamId, stream: freshStream }];
         });
       };
 
@@ -347,6 +351,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   useEffect(() => {
     if (!roomId || !uid) return;
 
+    const listenerStartedAt = Date.now();
     const signalsQuery = query(collection(db, "rooms", roomId, "signals"), where("to", "==", uid), orderBy("createdAt", "asc"));
     return onSnapshot(
       signalsQuery,
@@ -356,11 +361,30 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           processedSignals.current.add(change.doc.id);
 
           const signal = change.doc.data() as SignalPayload;
+
+          // Ignore stale signaling documents from older sessions/reloads
+          if (signal.createdAt && signal.createdAt < listenerStartedAt - 5000) {
+            console.log("Ignoring stale signaling document:", change.doc.id);
+            return;
+          }
+
           const peer = createPeer(signal.from);
 
           void (async () => {
             if (signal.type === "offer" && signal.sdp) {
               try {
+                const isPolite = uid > signal.from;
+                const collision = peer.signalingState !== "stable";
+                if (collision) {
+                  if (isPolite) {
+                    console.log("Collision detected: polite peer rolling back for", signal.from);
+                    await peer.setLocalDescription({ type: "rollback" });
+                  } else {
+                    console.log("Collision detected: impolite peer ignoring offer from", signal.from);
+                    return;
+                  }
+                }
+
                 await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
                 const answer = await peer.createAnswer();
                 await peer.setLocalDescription(answer);
@@ -412,6 +436,35 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       [`participants.${uid}.isSpeaking`]: speaking
     }).catch(() => undefined);
   }, [muted, roomId, speaking, uid]);
+
+  // Synchronize peer connections and remote streams with current participants
+  useEffect(() => {
+    if (!uid) return;
+
+    const currentRemoteUids = new Set(participants.map((p) => p.uid).filter((id) => id !== uid));
+
+    // Close and clean up connections for participants who left
+    Object.keys(peers.current).forEach((remoteUid) => {
+      if (!currentRemoteUids.has(remoteUid)) {
+        console.log(`Cleaning up WebRTC peer connection for left user: ${remoteUid}`);
+        try {
+          peers.current[remoteUid].close();
+        } catch (e) {
+          console.warn(`Error closing peer connection for ${remoteUid}:`, e);
+        }
+        delete peers.current[remoteUid];
+        delete candidateQueue.current[remoteUid];
+      }
+    });
+
+    // Clean up corresponding remote streams
+    setRemoteStreams((current) => current.filter((item) => currentRemoteUids.has(item.uid)));
+
+    // Re-negotiate/connect to current participants in the room
+    if (currentRemoteUids.size > 0) {
+      void broadcastOffers();
+    }
+  }, [participants.map((p) => p.uid).sort().join(","), uid, broadcastOffers]);
 
   useEffect(() => {
     return () => {

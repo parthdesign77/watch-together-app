@@ -419,6 +419,45 @@ export function WatchRoomPage() {
     navigate("/dashboard");
   }
 
+  async function handleHostLeaveOnly() {
+    isExitingRef.current = true;
+    cleanupWebRTC();
+
+    // Find all other participants in the room
+    const otherParticipants = participants.filter((p) => p.uid !== currentProfile.uid);
+
+    if (otherParticipants.length > 0) {
+      // Sort by joinedAt ascending (oldest first)
+      otherParticipants.sort((a, b) => a.joinedAt - b.joinedAt);
+      const nextHost = otherParticipants[0];
+
+      try {
+        const updates: any = {
+          hostId: nextHost.uid,
+          [`participants.${nextHost.uid}.isHost`]: true
+        };
+
+        // If current host is sharing screen, stop the screenshare in room state
+        if (currentRoom.isScreenSharing && currentRoom.screenShareHost === currentProfile.uid) {
+          updates.isScreenSharing = false;
+          updates.screenShareHost = null;
+          updates.status = currentRoom.videoUrl ? (currentRoom.isPlaying ? "watching" : "paused") : "waiting";
+        }
+
+        await updateRoomState(currentRoom.id, updates);
+      } catch (e) {
+        console.error("Failed to promote next host:", e);
+      }
+    }
+
+    try {
+      await leaveRoom(currentRoom.id, currentProfile.uid);
+    } catch (e) {
+      console.error("Error leaving room:", e);
+    }
+    navigate("/dashboard");
+  }
+
   async function shareScreen(mode: "entire-screen" | "window") {
     try {
       const stream = await webRTC.startScreenShare(mode, profile?.subscriptionPlan);
@@ -786,6 +825,7 @@ export function WatchRoomPage() {
         open={leaveModalOpen}
         onClose={() => setLeaveModalOpen(false)}
         onConfirm={handleConfirmLeave}
+        onLeaveOnly={handleHostLeaveOnly}
         isHost={isHost}
       />
 
