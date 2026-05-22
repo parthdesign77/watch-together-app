@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
-import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import { ProtectedRoute, AdminRoute } from "./components/layout/ProtectedRoute";
 import { useUISound } from "./hooks/useUISound";
 import { useAuth } from "./context/AuthContext";
 
@@ -56,11 +56,13 @@ export function App() {
     const hasVisited = localStorage.getItem("hasVisitedBefore");
     const isAuthRoute = location.pathname === "/login" || location.pathname.startsWith("/oauth");
 
-    if (!hasVisited && !isAuthRoute) {
+    if (!hasVisited && !isAuthRoute && !user) {
       localStorage.setItem("hasVisitedBefore", "true");
-      navigate("/login", { replace: true });
+      navigate("/login", { replace: true, state: { from: location } });
+    } else if (!hasVisited && user) {
+      localStorage.setItem("hasVisitedBefore", "true");
     }
-  }, [loading, location.pathname, navigate]);
+  }, [loading, location.pathname, navigate, user]);
 
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
@@ -114,7 +116,7 @@ export function App() {
   const isAuthRoute = location.pathname === "/login" || location.pathname.startsWith("/oauth");
 
   // Gating page-renders until auth hydrates or redirect is executed
-  if (loading || (!hasVisited && !isAuthRoute)) {
+  if (loading || (!hasVisited && !isAuthRoute && !user)) {
     return <GlobalLoader />;
   }
 
@@ -149,7 +151,9 @@ export function App() {
             <Route path="/payment-failed" element={<PaymentFailedPage />} />
             <Route path="/continue-watching" element={<ContinueWatchingPage />} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminPage />} />
+            </Route>
             <Route path="/room-expired" element={<RoomExpiredPage />} />
           </Route>
         </Route>

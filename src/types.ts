@@ -102,6 +102,9 @@ export interface UserProfile {
   uid: string;
   name: string;
   email: string;
+  username?: string;
+  bio?: string;
+  role?: "admin" | "user";
   avatar: string;
   avatarColor: string;
   watchlist: string[];

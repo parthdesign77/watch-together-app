@@ -96,6 +96,9 @@ async function ensureProfile(firebaseUser: User, fallbackName?: string): Promise
       uid: firebaseUser.uid,
       name: firebaseUser.displayName || fallbackName || firebaseUser.email?.split("@")[0] || "Cinema Friend",
       email: firebaseUser.email || "",
+      username: firebaseUser.email?.split("@")[0] || "",
+      bio: "",
+      role: (firebaseUser.email?.includes("admin") || firebaseUser.email === "admin@watchtogether.com") ? "admin" : "user",
       avatar: firebaseUser.photoURL || "",
       avatarColor: colorFor(firebaseUser.uid),
       watchlist: [],
@@ -139,13 +142,27 @@ async function ensureProfile(firebaseUser: User, fallbackName?: string): Promise
     return profile;
   }
 
-  await updateDoc(ref, {
-    name: firebaseUser.displayName || snapshot.data().name,
-    email: firebaseUser.email || snapshot.data().email,
-    avatar: firebaseUser.photoURL || snapshot.data().avatar || "",
+  // Auto-upgrade existing profiles if they don't have role, username, or bio fields yet
+  const existingData = snapshot.data();
+  const updatedFields: Record<string, any> = {
+    name: firebaseUser.displayName || existingData.name,
+    email: firebaseUser.email || existingData.email,
+    avatar: existingData.avatar || firebaseUser.photoURL || "",
     ...premiumFields,
     updatedAt: serverTimestamp()
-  });
+  };
+
+  if (!existingData.role) {
+    updatedFields.role = (firebaseUser.email?.includes("admin") || firebaseUser.email === "admin@watchtogether.com") ? "admin" : "user";
+  }
+  if (existingData.username === undefined) {
+    updatedFields.username = firebaseUser.email?.split("@")[0] || "";
+  }
+  if (existingData.bio === undefined) {
+    updatedFields.bio = "";
+  }
+
+  await updateDoc(ref, updatedFields);
   if (premiumAccess && premiumWindow) {
     await setDoc(
       doc(db, "subscriptions", firebaseUser.uid),
@@ -171,7 +188,10 @@ async function ensureProfile(firebaseUser: User, fallbackName?: string): Promise
     uid: firebaseUser.uid,
     name: firebaseUser.displayName || data.name,
     email: firebaseUser.email || data.email,
-    avatar: firebaseUser.photoURL || data.avatar || ""
+    avatar: data.avatar || firebaseUser.photoURL || "",
+    role: data.role || updatedFields.role,
+    username: data.username !== undefined ? data.username : updatedFields.username,
+    bio: data.bio !== undefined ? data.bio : updatedFields.bio
   };
 }
 

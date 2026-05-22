@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Plus, Star, Users } from "lucide-react";
+import { Play, Plus, Check, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { toggleWatchlist } from "../../hooks/useWatchlist";
@@ -31,7 +31,7 @@ export function ContentCard({ item, onStartRoom }: ContentCardProps) {
   const handleMouseEnter = () => {
     setIsHovered(true);
     play("hover");
-    // Trigger trailer preview after 500ms delay to feel organic
+    // Trigger trailer preview after 600ms delay to feel organic
     hoverTimer.current = setTimeout(() => {
       setShowTrailer(true);
     }, 600);
@@ -53,6 +53,8 @@ export function ContentCard({ item, onStartRoom }: ContentCardProps) {
     };
   }, []);
 
+  const isInWatchlist = profile?.watchlist?.includes(item.id);
+
   return (
     <motion.article
       className="group relative min-w-[140px] md:min-w-[195px] w-full overflow-hidden rounded-[20px] border border-white/5 bg-[#111111] shadow-2xl transition-all duration-300 hover:border-[#ff3d47]/40"
@@ -60,6 +62,31 @@ export function ContentCard({ item, onStartRoom }: ContentCardProps) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
+      {/* Floating Watchlist Button - Top Right Glassmorphic */}
+      <button
+        type="button"
+        aria-label={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
+        onClick={async (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          if (!profile) return;
+          play("select");
+          await toggleWatchlist(profile, item);
+          pushToast({ 
+            title: isInWatchlist ? "Removed from watchlist" : "Added to watchlist", 
+            description: item.title, 
+            type: "success" 
+          });
+        }}
+        className={`absolute top-3 right-3 z-20 h-8 w-8 rounded-full backdrop-blur border border-white/10 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 ${
+          isInWatchlist 
+            ? "bg-[#ff3d47] text-white border-[#ff3d47]/20" 
+            : "bg-black/60 hover:bg-[#ff3d47] text-white"
+        }`}
+      >
+        {isInWatchlist ? <Check className="h-4.5 w-4.5 stroke-[2.5]" /> : <Plus className="h-4.5 w-4.5 stroke-[2.5]" />}
+      </button>
+
       <Link to={detailPath} aria-label={`Open ${item.title}`} onClick={() => play("open-card")}>
         <div className="aspect-[2/3] w-full overflow-hidden bg-neutral-900 relative">
           
@@ -92,8 +119,8 @@ export function ContentCard({ item, onStartRoom }: ContentCardProps) {
                   className="h-full w-full object-cover"
                 />
                 
-                {/* Muted Indicator overlay */}
-                <div className="absolute top-3 right-3 bg-black/60 backdrop-blur px-2 py-0.5 rounded-full border border-white/10 text-[9px] font-bold text-neutral-400">
+                {/* Muted Indicator overlay - positioned top-left to avoid top-right watchlist button */}
+                <div className="absolute top-3 left-3 bg-black/60 backdrop-blur px-2 py-0.5 rounded-full border border-white/10 text-[9px] font-bold text-neutral-400">
                   TRAILER PREVIEW
                 </div>
               </motion.div>
@@ -120,10 +147,10 @@ export function ContentCard({ item, onStartRoom }: ContentCardProps) {
         <p className="mt-0.5 md:mt-1 text-[10px] md:text-xs text-neutral-400 font-semibold">{item.year}</p>
 
         {/* Action triggers */}
-        <div className="mt-2 flex gap-1.5 md:gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 transform translate-y-0 lg:translate-y-1 lg:group-hover:translate-y-0">
+        <div className="mt-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 transform translate-y-0 lg:translate-y-1 lg:group-hover:translate-y-0">
           <Button
             size="sm"
-            className="flex-1 bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-8 md:h-9 text-[10px] md:text-[11px] font-black shadow-glow-sm border-none flex items-center justify-center gap-1"
+            className="w-full bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-8 md:h-9 text-[10px] md:text-[11px] font-black shadow-glow-sm border-none flex items-center justify-center gap-1.5"
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -131,25 +158,8 @@ export function ContentCard({ item, onStartRoom }: ContentCardProps) {
               onStartRoom?.(item);
             }}
           >
-            <Play className="h-3 w-3 md:h-3.5 md:w-3.5 fill-current" />
+            <Play className="h-3.5 w-3.5 fill-current" />
             <span>Watch Party</span>
-          </Button>
-          
-          <Button
-            variant="secondary"
-            size="icon"
-            className="h-8 w-8 md:h-9 md:w-9 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl border border-white/5 flex items-center justify-center flex-shrink-0"
-            aria-label="Add to watchlist"
-            onClick={async (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (!profile) return;
-              play("select");
-              await toggleWatchlist(profile, item);
-              pushToast({ title: "Added to watchlist", description: item.title, type: "success" });
-            }}
-          >
-            <Plus className="h-4 w-4 md:h-4.5 md:w-4.5" />
           </Button>
         </div>
       </div>

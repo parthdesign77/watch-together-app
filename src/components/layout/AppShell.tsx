@@ -23,6 +23,7 @@ import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { ToastViewport } from "../ui/ToastViewport";
+import { MobileProfileModal } from "../ui/MobileProfileModal";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
@@ -64,12 +65,20 @@ export function AppShell() {
   const { sidebarOpen, toggleSidebar } = useUiStore();
   const location = useLocation();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isMobileProfileOpen, setIsMobileProfileOpen] = useState(false);
 
   const handleLinkClick = () => {
     if (sidebarOpen) {
       toggleSidebar();
     }
   };
+
+  const filteredUtilityItems = utilityItems.filter(item => {
+    if (item.href === "/admin") {
+      return profile?.role === "admin";
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-[100dvh] lg:min-h-screen bg-cinema-radial text-snow overflow-x-hidden">
@@ -91,6 +100,17 @@ export function AppShell() {
                 <span className="text-xs text-muted">Cinema rooms in sync</span>
               </span>
             </NavLink>
+          </div>
+
+          {/* Mobile Profile Trigger (Hidden on Desktop/PC) */}
+          <div className="flex items-center gap-2 md:hidden">
+            <button
+              onClick={() => setIsMobileProfileOpen(true)}
+              className="flex rounded-lg transition hover:scale-105 active:scale-95 focus:outline-none"
+              aria-label="Open Profile Settings"
+            >
+              <Avatar user={profile} />
+            </button>
           </div>
 
           <div className="relative hidden items-center gap-2 md:flex">
@@ -190,7 +210,7 @@ export function AppShell() {
           <div className="my-5 h-px bg-white/10" />
 
           <nav className="space-y-1">
-            {utilityItems.map((item) => (
+            {filteredUtilityItems.map((item) => (
               <ShellLink key={item.href} {...item} />
             ))}
           </nav>
@@ -258,15 +278,21 @@ export function AppShell() {
                 <div className="my-5 h-px bg-white/10" />
 
                 <nav className="space-y-1">
-                  {utilityItems.map((item) => (
+                  {filteredUtilityItems.map((item) => (
                     <ShellLink key={item.href} {...item} onClick={handleLinkClick} />
                   ))}
                 </nav>
 
                 <div className="mt-6 glass rounded-lg p-3">
-                  <div className="flex items-center gap-3">
+                  <div 
+                    onClick={() => {
+                      handleLinkClick();
+                      setIsMobileProfileOpen(true);
+                    }}
+                    className="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-1 rounded-md transition"
+                  >
                     <Avatar user={profile} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 text-left">
                       <p className="truncate text-sm font-bold">{profile?.name || "Guest"}</p>
                       <p className="truncate text-xs text-muted">{profile?.email}</p>
                     </div>
@@ -320,6 +346,7 @@ export function AppShell() {
         </div>
       </nav>
 
+      <MobileProfileModal open={isMobileProfileOpen} onClose={() => setIsMobileProfileOpen(false)} />
       <ToastViewport />
     </div>
   );

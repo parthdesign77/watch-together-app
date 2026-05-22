@@ -24,3 +24,27 @@ export function ProtectedRoute() {
 
   return <Outlet />;
 }
+
+export function AdminRoute() {
+  const { profile, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#090909] text-white">
+        <img 
+          src="/logo.png" 
+          alt="Watch Together" 
+          className="h-16 w-auto object-contain animate-rotate-logo" 
+        />
+      </div>
+    );
+  }
+
+  if (!profile || profile.role !== "admin") {
+    // If not admin, redirect to dashboard
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Outlet />;
+}
