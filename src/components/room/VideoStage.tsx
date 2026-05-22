@@ -234,12 +234,11 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
               
               return (
                 <motion.div
-                  layout
                   key={p.uid}
                   style={{
                     background: `linear-gradient(to bottom, ${(p.avatarColor || "#ff3d47")}22, #121216)`
                   }}
-                  className={`participant-card relative flex flex-col items-center justify-center rounded-[24px] sm:rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-500 ease-out ${
+                  className={`participant-card relative flex flex-col items-center justify-center rounded-[24px] sm:rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-[border-color,box-shadow] duration-200 ${
                     (feed || screenFeed)
                       ? "aspect-video w-full max-w-[92%] sm:w-[400px] md:w-[480px]"
                       : "aspect-square w-[45%] max-w-[180px] sm:w-[260px] md:w-[300px]"

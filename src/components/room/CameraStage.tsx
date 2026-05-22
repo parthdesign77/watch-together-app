@@ -49,7 +49,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
           {participants.map((p) => {
             const feed = feeds.find((f) => f.id.startsWith(p.uid));
             return (
-              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-all duration-500 ease-in-out ${p.isSpeaking ? 'speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
+              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-[border-color,box-shadow] duration-200 ${p.isSpeaking ? 'speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
                 {feed ? (
                   <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
@@ -122,7 +122,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
           {participants.map((p) => {
             const feed = feeds.find((f) => f.id.startsWith(p.uid));
             return (
-              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-all duration-500 ease-in-out ${p.isSpeaking ? 'speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
+              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-[border-color,box-shadow] duration-200 ${p.isSpeaking ? 'speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
                 {feed ? (
                   <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover animate-fade-in" />
                 ) : (

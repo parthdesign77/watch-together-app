@@ -50,7 +50,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const processedSignals = useRef<Set<string>>(new Set());
   const analyserCleanup = useRef<(() => void) | null>(null);
   const candidateQueue = useRef<Record<string, RTCIceCandidateInit[]>>({});
+  const negotiationPending = useRef<Record<string, boolean>>({});
   const negotiationState = useRef<Record<string, { makingOffer: boolean; ignoreOffer: boolean }>>({});
+  const mutedRef = useRef(false);
 
   const participantsRef = useRef(participants);
   useEffect(() => {
@@ -96,6 +98,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       const peer = new RTCPeerConnection({ iceServers: turnServers });
       peers.current[remoteUid] = peer;
       negotiationState.current[remoteUid] = { makingOffer: false, ignoreOffer: false };
+      negotiationPending.current[remoteUid] = false;
 
       localStreams.current.forEach((stream) => {
         stream.getTracks().forEach((track) => {
@@ -120,17 +123,22 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         console.log(`[ICE Connection] Connection with peer ${remoteUid} changed to: ${peer.iceConnectionState}`);
       };
 
-      peer.onsignalingstatechange = () => {
-        console.log(`[Signaling] Signaling state with peer ${remoteUid} changed to: ${peer.signalingState}`);
-      };
-
-      peer.onnegotiationneeded = async () => {
+      const negotiate = async () => {
         try {
-          console.log(`[Negotiation] Negotiation needed triggered for peer ${remoteUid}`);
+          console.log(`[Negotiation] Starting negotiation for peer ${remoteUid}, signalingState=${peer.signalingState}`);
+          if (peer.signalingState !== "stable") {
+            console.log(`[Negotiation] Peer signaling state is ${peer.signalingState}, queueing negotiation.`);
+            negotiationPending.current[remoteUid] = true;
+            return;
+          }
           negotiationState.current[remoteUid].makingOffer = true;
           const offer = await peer.createOffer();
-          if (peer.signalingState !== "stable") return;
-          console.log(`[Negotiation] Creating and setting local offer for peer ${remoteUid}`);
+          if (peer.signalingState !== "stable") {
+            console.log(`[Negotiation] Signaling state changed during createOffer to ${peer.signalingState}, queueing.`);
+            negotiationPending.current[remoteUid] = true;
+            return;
+          }
+          console.log(`[Negotiation] Setting local description and sending offer to ${remoteUid}`);
           await peer.setLocalDescription(offer);
           await sendSignal({
             type: "offer",
@@ -139,10 +147,24 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             sdp: peer.localDescription!
           });
         } catch (err) {
-          console.error("Error in onnegotiationneeded:", err);
+          console.error(`Error in negotiation with ${remoteUid}:`, err);
         } finally {
           negotiationState.current[remoteUid].makingOffer = false;
         }
+      };
+
+      peer.onsignalingstatechange = () => {
+        console.log(`[Signaling] Signaling state with peer ${remoteUid} changed to: ${peer.signalingState}`);
+        if (peer.signalingState === "stable" && negotiationPending.current[remoteUid]) {
+          console.log(`[Signaling] Peer ${remoteUid} is now stable. Running queued negotiation.`);
+          negotiationPending.current[remoteUid] = false;
+          void negotiate();
+        }
+      };
+
+      peer.onnegotiationneeded = () => {
+        console.log(`[Negotiation] Negotiation needed triggered for peer ${remoteUid}`);
+        void negotiate();
       };
 
       peer.ontrack = (event) => {

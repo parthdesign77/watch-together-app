@@ -4,6 +4,7 @@ import {
   collection,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   limit,
   onSnapshot,
@@ -108,6 +109,38 @@ export async function createWatchRoom(
 
 export async function joinRoomById(roomId: string, profile: UserProfile) {
   const roomRef = doc(db, "rooms", roomId);
+  const roomSnap = await getDoc(roomRef);
+  if (!roomSnap.exists()) {
+    throw new Error("Room not found.");
+  }
+  const roomData = roomSnap.data() as WatchRoom;
+  
+  // If the user is already in the room, let them in (allow rejoining without throwing a capacity error)
+  const isAlreadyParticipant = roomData.participants && !!roomData.participants[profile.uid];
+  
+  if (!isAlreadyParticipant) {
+    const hostId = roomData.hostId;
+    const host = roomData.participants?.[hostId];
+    const hostPlan = host?.subscriptionPlan || "free";
+    
+    // Calculate current participant count
+    const participantCount = Object.keys(roomData.participants || {}).length;
+    
+    // Determine limits: Free = 2, Standard = 5, Premium = 20
+    let limitValue = 2;
+    if (hostPlan === "premium") {
+      limitValue = 20;
+    } else if (hostPlan === "standard") {
+      limitValue = 5;
+    }
+    
+    if (participantCount >= limitValue) {
+      throw new Error(
+        `This room is at full capacity. The host's ${hostPlan.toUpperCase()} plan allows a maximum of ${limitValue} participants.`
+      );
+    }
+  }
+
   await updateDoc(roomRef, {
     [`participants.${profile.uid}`]: participantFromProfile(profile),
     updatedAt: Date.now(),
