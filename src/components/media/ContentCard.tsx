@@ -60,7 +60,7 @@ export function ContentCard({ item, onStartRoom }: ContentCardProps) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <Link to={detailPath} aria-label={`Open ${item.title}`} onClick={() => play("click")}>
+      <Link to={detailPath} aria-label={`Open ${item.title}`} onClick={() => play("open-card")}>
         <div className="aspect-[2/3] w-full overflow-hidden bg-neutral-900 relative">
           
           {/* Main Poster Art */}

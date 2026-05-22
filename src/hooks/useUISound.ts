@@ -11,10 +11,12 @@ export type UISoundType =
   | "start"
   | "ready"
   | "fullscreen-enter"
-  | "fullscreen-exit";
+  | "fullscreen-exit"
+  | "open-card";
 
 // Global, module-level singleton AudioContext to prevent browser limit crashes and optimize responsiveness
 let globalAudioCtx: AudioContext | null = null;
+let lastSoundPlayedTime = 0;
 
 export function useUISound() {
   const getAudioContext = (): AudioContext => {
@@ -30,8 +32,11 @@ export function useUISound() {
 
   const play = useCallback((type: UISoundType) => {
     try {
-      const isMobile = typeof window !== "undefined" && (window.matchMedia("(max-width: 1024px)").matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
-      if (isMobile) return;
+      const nowTime = Date.now();
+      if (nowTime - lastSoundPlayedTime < 50) {
+        return;
+      }
+      lastSoundPlayedTime = nowTime;
 
       const ctx = getAudioContext();
       const now = ctx.currentTime;
@@ -258,6 +263,26 @@ export function useUISound() {
           osc2.start(now);
           osc1.stop(now + 0.35);
           osc2.stop(now + 0.35);
+          break;
+        }
+        case "open-card": {
+          // Ascending major arpeggio synth chime
+          const playChime = (delay: number, freq: number, volume: number) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, now + delay);
+            gain.gain.setValueAtTime(volume, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.3);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.3);
+          };
+          playChime(0, 440, 0.04); // A4
+          playChime(0.06, 554.37, 0.04); // C#5
+          playChime(0.12, 659.25, 0.05); // E5
           break;
         }
       }

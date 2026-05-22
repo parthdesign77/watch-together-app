@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
@@ -23,8 +24,29 @@ import {
 } from "./pages/UtilityPages";
 import { WatchRoomPage } from "./pages/WatchRoomPage";
 import { WatchlistPage } from "./pages/WatchlistPage";
+import { useUISound } from "./hooks/useUISound";
 
 export function App() {
+  const { play } = useUISound();
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest("button") || target.closest('[role="button"]');
+      if (button && !(button as HTMLButtonElement).disabled && button.getAttribute("aria-disabled") !== "true") {
+        // Defer with setTimeout to allow any specific click handlers to play their specific sound first
+        setTimeout(() => {
+          play("click");
+        }, 0);
+      }
+    };
+
+    document.addEventListener("click", handleGlobalClick, { capture: true });
+    return () => {
+      document.removeEventListener("click", handleGlobalClick, { capture: true });
+    };
+  }, [play]);
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
