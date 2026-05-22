@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Maximize2, Video, Lock, Sparkles, Crown, Mic, MicOff } from "lucide-react";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -18,12 +19,13 @@ interface CameraStageProps {
   participants?: Participant[];
   screenShareActive: boolean;
   containerRef?: React.RefObject<HTMLDivElement | null>;
-  variant?: "floating" | "bottom-bar";
+  variant?: "floating" | "bottom-bar" | "pip";
   isFullscreen?: boolean;
 }
 
 export function CameraStage({ feeds, participants = [], screenShareActive, containerRef, variant = "floating", isFullscreen = false }: CameraStageProps) {
   const { profile } = useAuth();
+  const [isMinimized, setIsMinimized] = useState(false);
   const spotlight = feeds.length <= 1;
 
   if (variant === "bottom-bar") {
@@ -79,6 +81,102 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
           })}
         </div>
       </section>
+    );
+  }
+
+  if (variant === "pip") {
+    if (!feeds.length) return null;
+
+    if (isMinimized) {
+      return (
+        <motion.div
+          drag
+          dragConstraints={containerRef}
+          dragElastic={0.05}
+          dragMomentum={false}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="absolute bottom-20 left-4 z-40 flex items-center gap-2 rounded-full border border-[#ff3d47]/20 bg-[#111111]/90 backdrop-blur-md px-3 py-2 shadow-2xl cursor-grab active:cursor-grabbing hover:border-[#ff3d47]/40 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Video className="h-4 w-4 text-[#ff3d47] animate-pulse" />
+              <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+            </div>
+            <span className="text-[10px] font-black text-white uppercase tracking-wider select-none pointer-events-none">
+              {feeds.length} Active {feeds.length === 1 ? "Cam" : "Cams"}
+            </span>
+            <button 
+              onClick={() => setIsMinimized(false)}
+              className="ml-1 p-1 hover:bg-white/10 rounded-full text-white cursor-pointer transition-colors"
+              title="Maximize"
+            >
+              <Maximize2 className="h-3 w-3" />
+            </button>
+          </div>
+        </motion.div>
+      );
+    }
+
+    return (
+      <motion.div
+        drag
+        dragConstraints={containerRef}
+        dragElastic={0.05}
+        dragMomentum={false}
+        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+        className="absolute bottom-20 left-4 z-40 max-w-[90vw] w-fit rounded-2xl border border-white/10 bg-[#111111]/70 backdrop-blur-md p-2.5 shadow-glow cursor-grab active:cursor-grabbing flex flex-col gap-2 transition-all duration-350"
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-1.5 select-none pointer-events-none">
+          <div className="flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-black text-white/40 uppercase tracking-wider">Watch Party cams</span>
+          </div>
+          <button
+            onClick={() => setIsMinimized(true)}
+            className="pointer-events-auto p-1 hover:bg-white/10 rounded-lg text-neutral-400 hover:text-white cursor-pointer transition-colors"
+            title="Minimize"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-minus"><path d="M5 12h14"/></svg>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pr-1">
+          {feeds.map((feed) => {
+            const p = participants.find((part) => feed.id.startsWith(part.uid));
+            const isSpeaking = p?.isSpeaking;
+            return (
+              <div 
+                key={feed.id} 
+                className={`relative w-28 h-16 sm:w-40 sm:h-24 rounded-xl overflow-hidden border bg-black flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                  isSpeaking 
+                    ? "border-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.25)]" 
+                    : "border-white/5"
+                }`}
+              >
+                <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover" />
+                
+                {/* Overlay Name Tag */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-1.5 flex items-center justify-between gap-1 z-10">
+                  <p className="truncate text-[8px] sm:text-[10px] font-black text-white max-w-[70%]">
+                    {p?.name || feed.name.split(" ")[0]}
+                  </p>
+                  {p?.isMuted ? (
+                    <MicOff className="h-2.5 w-2.5 text-red-500 flex-shrink-0" />
+                  ) : (
+                    <Mic className={`h-2.5 w-2.5 flex-shrink-0 ${isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </motion.div>
     );
   }
 

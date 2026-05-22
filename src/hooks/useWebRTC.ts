@@ -572,6 +572,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   }, [removeLocalStream]);
 
   const startScreenShare = useCallback(async (mode: "entire-screen" | "window" = "entire-screen", plan?: string) => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      throw new Error("Screen sharing is not supported by your current browser or mobile device. Please use a modern desktop browser (Chrome, Firefox, Safari) or a supporting mobile browser.");
+    }
     console.log(`[WebRTC] Starting screen share with mode: ${mode}, plan tier: ${plan || "free"}`);
     let videoConstraints: MediaTrackConstraints = {
       displaySurface: mode === "entire-screen" ? "monitor" : "window",

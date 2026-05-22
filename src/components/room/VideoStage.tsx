@@ -383,8 +383,15 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
         </div>
       )}
 
-      {(!activeScreenStream && hasVideo && room.status !== "waiting" && cameraFeeds.length && !cinemaMode) ? (
-        <CameraStage feeds={cameraFeeds} participants={participants} screenShareActive={false} containerRef={stageRef} />
+      {(!activeScreenStream && hasVideo && room.status !== "waiting" && cameraFeeds.length && (room.isPlaying || !cinemaMode)) ? (
+        <CameraStage 
+          feeds={cameraFeeds} 
+          participants={participants} 
+          screenShareActive={false} 
+          containerRef={stageRef} 
+          variant={room.isPlaying ? "pip" : "floating"}
+          isFullscreen={isFullscreen}
+        />
       ) : null}
 
       <AnimatePresence>

@@ -836,7 +836,7 @@ export function WatchRoomPage() {
           </div>
 
           {/* Bottom Row: Camera list during screen sharing or Cinema Mode (always visible without scrolling) */}
-          {(screenShareActive || (cinemaMode && cameraFeeds.length > 0)) ? (
+          {(screenShareActive || (cinemaMode && cameraFeeds.length > 0)) && !room.isPlaying && (
             <div className="w-full flex-shrink-0">
               <CameraStage
                 feeds={cameraFeeds}
@@ -846,38 +846,6 @@ export function WatchRoomPage() {
                 isFullscreen={isFullscreen}
               />
             </div>
-          ) : (
-            !cinemaMode && (
-              <section className="grid gap-4 md:grid-cols-3 flex-shrink-0">
-                <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <Radio className="h-5 w-5 text-[#ff3d47]" />
-                    <div>
-                      <p className="text-sm font-bold text-white">Latency Engine</p>
-                      <p className="text-xs text-neutral-400">Heartbeat sync · drift correction</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <MonitorUp className="h-5 w-5 text-purple-400" />
-                    <div>
-                      <p className="text-sm font-bold text-white">Screen Share</p>
-                      <p className="text-xs text-neutral-400">{room.isScreenSharing ? "HD Stream receiving" : "Entire screen sharing"}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <MessageSquare className="h-5 w-5 text-emerald-400" />
-                    <div>
-                      <p className="text-sm font-bold text-white">Audio Channels</p>
-                      <p className="text-xs text-neutral-400">Movie audio + low latency voice</p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )
           )}
         </div>
 
