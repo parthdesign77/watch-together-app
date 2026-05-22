@@ -259,13 +259,13 @@ export function SearchPage() {
         )}
 
         {results.isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
             {Array.from({ length: 8 }).map((_, index) => (
               <Skeleton key={index} className="aspect-[2/3] rounded-xl" />
             ))}
           </div>
         ) : results.data?.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
             {results.data.map((item) => (
               <ContentCard
                 key={item.id}
@@ -306,7 +306,7 @@ export function SearchPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
           {relatedSuggestions.map((item) => (
             <ContentCard
               key={`suggest-${item.id}`}

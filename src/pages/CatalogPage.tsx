@@ -70,13 +70,13 @@ export function CatalogPage({ type }: { type: "movie" | "anime" }) {
       </section>
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
           {Array.from({ length: 10 }).map((_, index) => (
             <Skeleton key={index} className="aspect-[2/3]" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6">
           {filtered.map((item) => (
             <ContentCard
               key={item.id}

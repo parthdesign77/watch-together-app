@@ -40,10 +40,11 @@ const utilityItems = [
   { href: "/admin", label: "Admin", icon: Shield }
 ];
 
-function ShellLink({ href, label, icon: Icon }: (typeof navItems)[number]) {
+function ShellLink({ href, label, icon: Icon, onClick }: (typeof navItems)[number] & { onClick?: () => void }) {
   return (
     <NavLink
       to={href}
+      onClick={onClick}
       className={({ isActive }) =>
         `flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
           isActive ? "bg-white/12 text-snow shadow-glow" : "text-muted hover:bg-white/8 hover:text-snow"
@@ -62,8 +63,14 @@ export function AppShell() {
   const location = useLocation();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
+  const handleLinkClick = () => {
+    if (sidebarOpen) {
+      toggleSidebar();
+    }
+  };
+
   return (
-    <div className="min-h-[100dvh] lg:min-h-screen bg-cinema-radial text-snow">
+    <div className="min-h-[100dvh] lg:min-h-screen bg-cinema-radial text-snow overflow-x-hidden">
       <div className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-ink/70 backdrop-blur-2xl">
         <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-6">
           <div className="flex items-center gap-3">
@@ -166,10 +173,23 @@ export function AppShell() {
         </div>
       </div>
 
+      {/* Backdrop for Mobile Drawer */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={toggleSidebar}
+            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {(sidebarOpen || window.innerWidth >= 1024) && (
           <motion.aside
-            className={`fixed bottom-0 left-0 top-16 z-40 w-72 border-r border-white/10 bg-ink/88 p-4 backdrop-blur-2xl ${
+            className={`fixed bottom-0 left-0 top-16 z-40 w-72 border-r border-white/10 bg-ink/88 p-4 pb-28 lg:pb-4 backdrop-blur-2xl ${
               sidebarOpen ? "block" : "hidden lg:block"
             }`}
             initial={{ x: -288 }}
@@ -177,10 +197,10 @@ export function AppShell() {
             exit={{ x: -288 }}
             transition={{ type: "spring", stiffness: 260, damping: 30 }}
           >
-            <div className="flex h-full flex-col">
+            <div className="flex h-full flex-col overflow-y-auto scrollbar-none">
               <nav className="space-y-1">
                 {navItems.map((item) => (
-                  <ShellLink key={item.href} {...item} />
+                  <ShellLink key={item.href} {...item} onClick={handleLinkClick} />
                 ))}
               </nav>
 
@@ -188,7 +208,7 @@ export function AppShell() {
 
               <nav className="space-y-1">
                 {utilityItems.map((item) => (
-                  <ShellLink key={item.href} {...item} />
+                  <ShellLink key={item.href} {...item} onClick={handleLinkClick} />
                 ))}
               </nav>
 
@@ -200,7 +220,10 @@ export function AppShell() {
                     <p className="truncate text-xs text-muted">{profile?.email}</p>
                   </div>
                 </div>
-                <Button variant="ghost" className="mt-3 w-full justify-start" onClick={logout}>
+                <Button variant="ghost" className="mt-3 w-full justify-start" onClick={() => {
+                  handleLinkClick();
+                  logout();
+                }}>
                   <LogOut className="h-4 w-4" />
                   Logout
                 </Button>
@@ -210,7 +233,7 @@ export function AppShell() {
         )}
       </AnimatePresence>
 
-      <main className="min-h-[100dvh] lg:min-h-screen px-4 pb-24 pt-20 lg:ml-72 lg:px-8">
+      <main className="min-h-[100dvh] lg:min-h-screen px-4 pb-24 pt-20 lg:ml-72 lg:px-8 overflow-x-hidden w-full lg:w-[calc(100%-18rem)]">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

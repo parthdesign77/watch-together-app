@@ -10,6 +10,14 @@
     touch-action: manipulation;
   }
 
+  /* Force viewport bounds to completely eliminate horizontal scrolling */
+  html,
+  body,
+  #root {
+    max-width: 100vw;
+    overflow-x: hidden !important;
+  }
+
   /* Full viewport adjustment on tall devices (Poco X5 Pro 5G, iPhone Pro Max) */
   body {
     min-height: 100dvh;
@@ -20,7 +28,6 @@
       linear-gradient(135deg, #030303 0%, #090909 52%, #111111 100%) !important;
     background-attachment: scroll !important;
     background-size: cover !important;
-    overflow-x: hidden;
   }
 
   /* Optimize glass elements for performance and responsive transitions */

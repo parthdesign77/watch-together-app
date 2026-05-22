@@ -55,7 +55,7 @@ export function ContentCard({ item, onStartRoom }: ContentCardProps) {
 
   return (
     <motion.article
-      className="group relative min-w-[195px] w-full overflow-hidden rounded-[20px] border border-white/5 bg-[#111111] shadow-2xl transition-all duration-300 hover:border-[#ff3d47]/40"
+      className="group relative min-w-[140px] md:min-w-[195px] w-full overflow-hidden rounded-[20px] border border-white/5 bg-[#111111] shadow-2xl transition-all duration-300 hover:border-[#ff3d47]/40"
       whileHover={{ y: -6, scale: 1.03 }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
