@@ -29,10 +29,12 @@ export function MovieSelectorModal({ open, onClose, room }: MovieSelectorModalPr
     
     // Flatten rows into a unique set of content
     const items: Record<string, ContentItem> = {};
-    Object.values(movies.data).flat().forEach((m) => {
+    const movieItems = Object.values(movies.data).flat() as ContentItem[];
+    movieItems.forEach((m) => {
       if (m?.id) items[m.id] = m;
     });
-    Object.values(anime.data).flat().forEach((a) => {
+    const animeItems = Object.values(anime.data).flat() as ContentItem[];
+    animeItems.forEach((a) => {
       if (a?.id) items[a.id] = a;
     });
 
