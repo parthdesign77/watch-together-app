@@ -85,7 +85,7 @@ export function ParticipantsPanel({ participants }: { participants: Participant[
                   ) : (
                     <Wifi className="h-4 w-4 text-anime transition-transform duration-200 hover:scale-110" />
                   )}
-                  <div className="pointer-events-none absolute bottom-full right-0 mb-2 z-30 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+                  <div className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 z-30 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-1 group-hover:translate-x-0">
                     <div className="bg-[#111111]/95 backdrop-blur-md text-[10px] font-bold text-white px-2.5 py-1.5 rounded-lg border border-white/10 shadow-lg whitespace-nowrap flex flex-col gap-0.5">
                       <span className="text-neutral-400 font-normal">Connection Status</span>
                       <span className={participant.connectionQuality === "poor" ? "text-danger" : "text-emerald-400"}>
