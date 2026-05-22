@@ -94,7 +94,7 @@ export function DashboardPage() {
     <div className="space-y-10 text-white pb-10">
       
       {/* Upper Grid Area */}
-      <div className="grid gap-6 xl:grid-cols-[1fr_390px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_390px]">
         {/* Widescreen Hero Feature */}
         <div className="overflow-hidden rounded-[28px] border border-white/5 bg-[#111111] shadow-2xl relative">
           {hero ? (
@@ -315,7 +315,7 @@ export function DashboardPage() {
           </div>
 
           {/* Interactive Friend Row Cards */}
-          <div className="grid gap-4 mt-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 mt-6 md:grid-cols-3">
             {rooms.slice(0, 3).map((room) => {
               const host = Object.values(room.participants || {}).find(p => p.isHost) || Object.values(room.participants || {})[0] || { name: "Host", avatarColor: "#ff3d47" };
               const participantCount = Object.keys(room.participants || {}).length;

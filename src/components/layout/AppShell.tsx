@@ -216,11 +216,11 @@ export function AppShell() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={toggleSidebar}
-              className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-45 bg-black/60 backdrop-blur-sm lg:hidden"
             />
             {/* Drawer */}
             <motion.aside
-              className="fixed bottom-0 left-0 top-16 z-40 w-72 max-w-[80vw] border-r border-white/10 bg-ink/90 p-4 pb-28 backdrop-blur-2xl lg:hidden"
+              className="fixed bottom-0 left-0 top-16 z-50 w-72 max-w-[85vw] border-r border-white/10 bg-ink/90 p-4 pb-6 backdrop-blur-2xl lg:hidden"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}

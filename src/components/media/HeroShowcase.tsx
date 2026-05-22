@@ -45,13 +45,21 @@ export function HeroShowcase({ item, onStartRoom }: HeroShowcaseProps) {
             </span>
           ))}
         </div>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Button size="lg" onClick={() => (onStartRoom ? onStartRoom(item) : (window.location.href = "/login"))}>
+        <div className="mt-8 flex flex-col sm:flex-row flex-wrap gap-3">
+          <Button
+            size="lg"
+            onClick={() => (onStartRoom ? onStartRoom(item) : (window.location.href = "/login"))}
+            className="w-full sm:w-auto text-sm sm:text-base h-11 sm:h-12 px-4 sm:px-5 flex items-center justify-center"
+          >
             <Play className="h-5 w-5" />
             Start Together
           </Button>
-          <Link to={detailPath}>
-            <Button variant="secondary" size="lg">
+          <Link to={detailPath} className="w-full sm:w-auto">
+            <Button
+              variant="secondary"
+              size="lg"
+              className="w-full sm:w-auto text-sm sm:text-base h-11 sm:h-12 px-4 sm:px-5 flex items-center justify-center"
+            >
               <Users className="h-5 w-5" />
               Watch Together
             </Button>
@@ -59,6 +67,7 @@ export function HeroShowcase({ item, onStartRoom }: HeroShowcaseProps) {
           <Button
             variant="ghost"
             size="lg"
+            className="w-full sm:w-auto text-sm sm:text-base h-11 sm:h-12 px-4 sm:px-5 flex items-center justify-center"
             onClick={async () => {
               if (!profile) return;
               await toggleWatchlist(profile, item);

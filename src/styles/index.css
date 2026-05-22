@@ -58,19 +58,16 @@ button:disabled {
   cursor: not-allowed;
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+/* Hide scrollbars globally */
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(9, 9, 9, 0.9);
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #ef4444, #7f1d1d);
-  border-radius: 999px;
-  border: 2px solid rgba(9, 9, 9, 0.9);
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 .glass {
