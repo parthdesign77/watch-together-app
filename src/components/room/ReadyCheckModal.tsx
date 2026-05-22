@@ -101,9 +101,9 @@ export function ReadyCheckModal({ open, room, userId, isHost, participants }: Re
                         style={{ backgroundColor: p.avatar ? undefined : (p.avatarColor || "#ff3d47") }}
                       >
                         {p.avatar ? (
-                          <img src={p.avatar} alt={p.name} className="h-full w-full rounded-full object-cover" />
+                          <img src={p.avatar} alt={p.name || "Guest"} className="h-full w-full rounded-full object-cover" />
                         ) : (
-                          p.name.slice(0, 2).toUpperCase()
+                          (p.name || "Guest").slice(0, 2).toUpperCase()
                         )}
                       </div>
                       <span className="text-sm font-semibold text-white">{p.name}</span>

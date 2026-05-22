@@ -175,9 +175,9 @@ export function DashboardPage() {
                               style={{ backgroundColor: p.avatar ? undefined : (p.avatarColor || "#ff3d47"), zIndex: 10 - idx }}
                             >
                               {p.avatar ? (
-                                <img src={p.avatar} alt={p.name} className="h-full w-full rounded-full object-cover" />
+                                <img src={p.avatar} alt={p.name || "Guest"} className="h-full w-full rounded-full object-cover" />
                               ) : (
-                                p.name.slice(0, 1).toUpperCase()
+                                (p.name || "Guest").slice(0, 1).toUpperCase()
                               )}
                             </div>
                           ))}
@@ -331,9 +331,9 @@ export function DashboardPage() {
                       style={{ backgroundColor: host.avatar ? undefined : (host.avatarColor || "#ff3d47") }}
                     >
                       {host.avatar ? (
-                        <img src={host.avatar} alt={host.name} className="h-full w-full object-cover" />
+                        <img src={host.avatar} alt={host.name || "Host"} className="h-full w-full object-cover" />
                       ) : (
-                        host.name.slice(0, 1).toUpperCase()
+                        (host.name || "Host").slice(0, 1).toUpperCase()
                       )}
                       <span className="absolute bottom-0 right-0 h-3 w-3 bg-emerald-500 rounded-full ring-2 ring-[#111111]" />
                     </div>

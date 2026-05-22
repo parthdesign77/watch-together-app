@@ -100,16 +100,31 @@ export function WatchRoomPage() {
   const voicePrompted = useRef(false);
   const prevRoomRef = useRef<any>(null);
   
+  const isExitingRef = useRef(false);
   const navigate = useNavigate();
   const pushToast = useUiStore((state) => state.pushToast);
   
   const isHost = Boolean(room && profile && room.hostId === profile.uid);
   const webRTC = useWebRTC(room?.id, profile?.uid, participants);
 
-  const remoteScreenStream = useMemo(
-    () => webRTC.remoteStreams.find((item) => item.uid === room?.screenShareHost && item.stream.getVideoTracks().length > 0)?.stream || null,
-    [room?.screenShareHost, webRTC.remoteStreams]
-  );
+  const remoteScreenStream = useMemo(() => {
+    if (!room?.screenShareHost) return null;
+    const hostParticipant = room.participants?.[room.screenShareHost];
+    if (hostParticipant?.screenStreamId) {
+      const match = webRTC.remoteStreams.find(
+        (item) => item.uid === room.screenShareHost && item.id === hostParticipant.screenStreamId
+      );
+      if (match) return match.stream;
+    }
+    return (
+      webRTC.remoteStreams.find((item) => {
+        if (item.uid !== room.screenShareHost) return false;
+        if (item.stream.getVideoTracks().length === 0) return false;
+        if (hostParticipant?.cameraStreamId && item.id === hostParticipant.cameraStreamId) return false;
+        return true;
+      })?.stream || null
+    );
+  }, [room?.screenShareHost, room?.participants, webRTC.remoteStreams]);
 
   const cameraFeeds = useMemo<CameraFeed[]>(() => {
     const feeds: CameraFeed[] = [];
@@ -119,8 +134,17 @@ export function WatchRoomPage() {
 
     webRTC.remoteStreams
       .filter((item) => item.stream.getVideoTracks().length > 0)
-      .filter((item) => item.stream !== remoteScreenStream)
-      .filter((item) => room?.participants?.[item.uid]?.isCameraOn || !room?.isScreenSharing)
+      .filter((item) => {
+        const participant = room?.participants?.[item.uid];
+        if (!participant) return false;
+        if (participant.screenStreamId && item.id === participant.screenStreamId) {
+          return false;
+        }
+        if (item.stream === remoteScreenStream) {
+          return false;
+        }
+        return participant.isCameraOn || !room?.isScreenSharing;
+      })
       .forEach((item) => {
         feeds.push({
           id: `${item.uid}-${item.id}`,
@@ -192,6 +216,16 @@ export function WatchRoomPage() {
       if (prev.quality !== room.quality) {
         newLogs.push(`Quality changed to ${room.quality}`);
       }
+      if (prev.isScreenSharing !== room.isScreenSharing) {
+        if (room.isScreenSharing) {
+          const hostName = room.participants?.[room.screenShareHost || ""]?.name || "Someone";
+          newLogs.push(`${hostName} started screen sharing`);
+          play("start");
+        } else {
+          newLogs.push("Screen sharing stopped");
+          play("leave");
+        }
+      }
       // Participant join/leave detector
       const prevUids = Object.keys(prev.participants || {});
       const currUids = Object.keys(room.participants || {});
@@ -228,6 +262,7 @@ export function WatchRoomPage() {
         description: "The host has closed this watch room.",
         type: "info"
       });
+      isExitingRef.current = true;
       cleanupWebRTC();
       navigate("/dashboard");
     }
@@ -265,12 +300,14 @@ export function WatchRoomPage() {
 
   // Auto-sync Firestore when local screen sharing stops natively (e.g. via browser UI)
   useEffect(() => {
+    if (isExitingRef.current) return;
     if (!webRTC.screenStream && room?.isScreenSharing && profile && room?.screenShareHost === profile.uid) {
       void updateRoomState(room.id, {
         isScreenSharing: false,
         screenShareHost: null,
         status: room.videoUrl ? (room.isPlaying ? "watching" : "paused") : "waiting",
-        [`participants.${profile.uid}.isScreenSharing`]: false
+        [`participants.${profile.uid}.isScreenSharing`]: false,
+        [`participants.${profile.uid}.screenStreamId`]: null
       });
       pushToast({
         title: "Screen sharing stopped",
@@ -279,6 +316,18 @@ export function WatchRoomPage() {
       });
     }
   }, [webRTC.screenStream, room?.isScreenSharing, room?.screenShareHost, room?.id, room?.videoUrl, room?.isPlaying, profile, pushToast]);
+
+  // If someone else takes over screen sharing, stop our own local screen share stream
+  useEffect(() => {
+    if (webRTC.screenStream && room?.isScreenSharing && room?.screenShareHost !== profile?.uid) {
+      webRTC.stopScreenShare();
+      pushToast({
+        title: "Screen sharing stopped",
+        description: "Someone else started sharing their screen.",
+        type: "info"
+      });
+    }
+  }, [room?.isScreenSharing, room?.screenShareHost, profile?.uid, webRTC, pushToast]);
 
   if (!roomId) return <Navigate to="/dashboard" replace />;
 
@@ -329,6 +378,7 @@ export function WatchRoomPage() {
   }
 
   async function handleConfirmLeave() {
+    isExitingRef.current = true;
     cleanupWebRTC();
     if (isHost) {
       await endRoom(currentRoom.id);
@@ -340,13 +390,19 @@ export function WatchRoomPage() {
 
   async function shareScreen(mode: "entire-screen" | "window") {
     try {
-      await webRTC.startScreenShare(mode, profile?.subscriptionPlan);
-      await updateRoomState(currentRoom.id, {
+      const stream = await webRTC.startScreenShare(mode, profile?.subscriptionPlan);
+      const updates: any = {
         isScreenSharing: true,
         screenShareHost: currentProfile.uid,
         status: "screen-sharing",
-        [`participants.${currentProfile.uid}.isScreenSharing`]: true
-      });
+        [`participants.${currentProfile.uid}.isScreenSharing`]: true,
+        [`participants.${currentProfile.uid}.screenStreamId`]: stream.id
+      };
+      if (currentRoom.screenShareHost && currentRoom.screenShareHost !== currentProfile.uid) {
+        updates[`participants.${currentRoom.screenShareHost}.isScreenSharing`] = false;
+        updates[`participants.${currentRoom.screenShareHost}.screenStreamId`] = null;
+      }
+      await updateRoomState(currentRoom.id, updates);
       pushToast({
         title: "Entire screen shared",
         description: "High-quality screen stream propagating successfully.",
@@ -363,7 +419,8 @@ export function WatchRoomPage() {
       isScreenSharing: false,
       screenShareHost: null,
       status: currentRoom.videoUrl ? (currentRoom.isPlaying ? "watching" : "paused") : "waiting",
-      [`participants.${currentProfile.uid}.isScreenSharing`]: false
+      [`participants.${currentProfile.uid}.isScreenSharing`]: false,
+      [`participants.${currentProfile.uid}.screenStreamId`]: null
     });
   }
 
@@ -372,14 +429,16 @@ export function WatchRoomPage() {
       if (webRTC.cameraStream) {
         webRTC.stopCamera();
         await updateRoomState(currentRoom.id, {
-          [`participants.${currentProfile.uid}.isCameraOn`]: false
+          [`participants.${currentProfile.uid}.isCameraOn`]: false,
+          [`participants.${currentProfile.uid}.cameraStreamId`]: null
         });
         return;
       }
 
-      await webRTC.startCamera(profile?.subscriptionPlan);
+      const stream = await webRTC.startCamera(profile?.subscriptionPlan);
       await updateRoomState(currentRoom.id, {
-        [`participants.${currentProfile.uid}.isCameraOn`]: true
+        [`participants.${currentProfile.uid}.isCameraOn`]: true,
+        [`participants.${currentProfile.uid}.cameraStreamId`]: stream.id
       });
       pushToast({ title: "Camera connected", description: "Your feed will float as picture-in-picture during active shares.", type: "success" });
     } catch (error) {
@@ -426,7 +485,9 @@ export function WatchRoomPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090909] text-white p-3 sm:p-5 flex flex-col gap-3 sm:gap-5 overflow-x-hidden relative">
+    <div className={`bg-[#090909] text-white p-3 sm:p-5 flex flex-col gap-3 sm:gap-5 overflow-x-hidden relative ${
+      cinemaMode ? "h-screen max-h-screen overflow-hidden" : "min-h-screen xl:h-screen xl:max-h-screen xl:overflow-hidden"
+    }`}>
       
       {/* Floating Exit Cinema Mode Button (Always visible in Cinema Mode) */}
       <AnimatePresence>
@@ -497,10 +558,10 @@ export function WatchRoomPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className={`grid gap-5 flex-1 transition-all duration-500 ${cinemaMode ? "grid-cols-1" : "xl:grid-cols-[1fr_380px]"}`}>
+      <div className="flex flex-col xl:flex-row gap-5 flex-1 min-h-0 transition-all duration-500">
         
         {/* Widescreen Video Stage Container */}
-        <div className="space-y-5 flex flex-col justify-center relative">
+        <div className="flex-1 min-h-0 flex flex-col gap-4 relative">
           
           {/* Room Synced Notification Overlay */}
           <div className="absolute top-5 left-5 z-40 space-y-2 pointer-events-none max-w-sm">
@@ -538,9 +599,9 @@ export function WatchRoomPage() {
                   title={`Click to exit Cinema mode - ${p.name}`}
                 >
                   {p.avatar ? (
-                    <img src={p.avatar} alt={p.name} className="h-full w-full rounded-full object-cover" />
+                    <img src={p.avatar} alt={p.name || "Guest"} className="h-full w-full rounded-full object-cover" />
                   ) : (
-                    p.name.slice(0, 2).toUpperCase()
+                    (p.name || "Guest").slice(0, 2).toUpperCase()
                   )}
                   {p.isMuted && (
                     <div className="absolute -bottom-1 -right-1 bg-red-600 rounded-full p-0.5 border border-black shadow">
@@ -553,7 +614,7 @@ export function WatchRoomPage() {
           )}
 
           {/* Core Media Display */}
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 min-h-0 w-full flex items-center justify-center">
             <VideoStage
               room={room}
               isHost={isHost}
@@ -562,58 +623,58 @@ export function WatchRoomPage() {
               cameraFeeds={cameraFeeds}
               participants={participants}
               onVideoEnded={() => setCinemaMode(false)}
+              cinemaMode={cinemaMode}
             />
           </div>
 
-          {/* Info cards (Hidden in Cinema Mode to yield massive theater canvas) */}
-          {!cinemaMode && (
-            <section className="grid gap-4 md:grid-cols-3">
-              <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
-                <div className="flex items-center gap-3">
-                  <Radio className="h-5 w-5 text-[#ff3d47]" />
-                  <div>
-                    <p className="text-sm font-bold text-white">Latency Engine</p>
-                    <p className="text-xs text-neutral-400">Heartbeat sync · drift correction</p>
+          {/* Bottom Row: Camera list during screen sharing or Cinema Mode (always visible without scrolling) */}
+          {(screenShareActive || (cinemaMode && cameraFeeds.length > 0)) ? (
+            <div className="w-full flex-shrink-0">
+              <CameraStage
+                feeds={cameraFeeds}
+                participants={participants}
+                screenShareActive={screenShareActive}
+                variant="bottom-bar"
+              />
+            </div>
+          ) : (
+            !cinemaMode && (
+              <section className="grid gap-4 md:grid-cols-3 flex-shrink-0">
+                <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <Radio className="h-5 w-5 text-[#ff3d47]" />
+                    <div>
+                      <p className="text-sm font-bold text-white">Latency Engine</p>
+                      <p className="text-xs text-neutral-400">Heartbeat sync · drift correction</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
-                <div className="flex items-center gap-3">
-                  <MonitorUp className="h-5 w-5 text-purple-400" />
-                  <div>
-                    <p className="text-sm font-bold text-white">Screen Share</p>
-                    <p className="text-xs text-neutral-400">{room.isScreenSharing ? "HD Stream receiving" : "Entire screen sharing"}</p>
+                <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <MonitorUp className="h-5 w-5 text-purple-400" />
+                    <div>
+                      <p className="text-sm font-bold text-white">Screen Share</p>
+                      <p className="text-xs text-neutral-400">{room.isScreenSharing ? "HD Stream receiving" : "Entire screen sharing"}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
-                <div className="flex items-center gap-3">
-                  <MessageSquare className="h-5 w-5 text-emerald-400" />
-                  <div>
-                    <p className="text-sm font-bold text-white">Audio Channels</p>
-                    <p className="text-xs text-neutral-400">Movie audio + low latency voice</p>
+                <div className="glass rounded-[20px] p-4 bg-[#111111]/60 border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="h-5 w-5 text-emerald-400" />
+                    <div>
+                      <p className="text-sm font-bold text-white">Audio Channels</p>
+                      <p className="text-xs text-neutral-400">Movie audio + low latency voice</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )
           )}
-
-          {webRTC.screenStream && !cinemaMode ? (
-            <section className="glass rounded-[24px] p-4 bg-[#111111]/40 border border-white/5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-sm font-extrabold text-white">Your Shared Screen</h2>
-                <Badge className="bg-[#ff3d47] text-white border-none font-bold uppercase tracking-wider text-[10px] px-2 py-0.5 rounded">
-                  LIVE
-                </Badge>
-              </div>
-              <StreamVideo stream={webRTC.screenStream} muted className="max-h-56 w-full rounded-[18px] bg-black object-contain border border-white/5" />
-            </section>
-          ) : null}
         </div>
 
         {/* Sidebar Panel (Hidden when Cinema Mode is active) */}
         {!cinemaMode && (
-          <div className="flex flex-col w-full h-full gap-4">
+          <div className="flex flex-col w-full xl:w-[380px] h-full gap-4 flex-shrink-0">
             {/* Glassmorphic Tab Switcher (Visible only on screens < xl) */}
             <div className="flex xl:hidden bg-[#111111]/80 border border-white/5 rounded-2xl p-1 gap-1 shadow-glow-sm">
               <button
@@ -650,9 +711,13 @@ export function WatchRoomPage() {
             </div>
 
             {/* Desktop stacked layout (Visible only on xl screens) */}
-            <div className="xl:flex hidden flex-col gap-4 w-full h-full justify-between overflow-y-auto max-h-[88vh] pr-1">
-              <ParticipantsPanel participants={participants} />
-              <ChatPanel roomId={room.id} profile={profile} />
+            <div className="xl:flex hidden flex-col gap-4 w-full h-full min-h-0 pr-1">
+              <div className="flex-shrink-0">
+                <ParticipantsPanel participants={participants} />
+              </div>
+              <div className="flex-1 min-h-0">
+                <ChatPanel roomId={room.id} profile={profile} />
+              </div>
             </div>
 
             {/* Mobile/Tablet tabbed layout (Visible only on screens < xl) */}

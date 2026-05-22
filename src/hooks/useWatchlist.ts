@@ -13,9 +13,15 @@ export function useWatchlist(profile?: UserProfile | null) {
     }
 
     const watchlistQuery = query(collection(db, "watchlists"), where("userId", "==", profile.uid));
-    return onSnapshot(watchlistQuery, (snapshot) => {
-      setItems(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as WatchlistEntry));
-    });
+    return onSnapshot(
+      watchlistQuery,
+      (snapshot) => {
+        setItems(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as WatchlistEntry));
+      },
+      (error) => {
+        console.warn("[useWatchlist] onSnapshot error:", error);
+      }
+    );
   }, [profile]);
 
   return items;

@@ -38,9 +38,15 @@ export function useSubscription(profile?: UserProfile | null) {
       return;
     }
 
-    return onSnapshot(doc(db, "subscriptions", profile.uid), (snapshot) => {
-      setSubscription(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as SubscriptionRecord) : null);
-    });
+    return onSnapshot(
+      doc(db, "subscriptions", profile.uid),
+      (snapshot) => {
+        setSubscription(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as SubscriptionRecord) : null);
+      },
+      (error) => {
+        console.warn("[useSubscription] onSnapshot error:", error);
+      }
+    );
   }, [profile]);
 
   return subscription;

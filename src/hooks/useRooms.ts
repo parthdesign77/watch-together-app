@@ -175,7 +175,10 @@ export function useRoom(roomId?: string) {
         setRoom(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as WatchRoom) : null);
         setLoading(false);
       },
-      () => setLoading(false)
+      (error) => {
+        console.warn("[useRoom] onSnapshot error:", error);
+        setLoading(false);
+      }
     );
   }, [roomId]);
 
@@ -193,9 +196,15 @@ export function useActiveRooms(profile?: UserProfile | null) {
       collection(db, "rooms"),
       where("status", "in", ["waiting", "watching", "paused", "screen-sharing"])
     );
-    return onSnapshot(activeRoomsQuery, (snapshot) => {
-      setRooms(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as WatchRoom));
-    });
+    return onSnapshot(
+      activeRoomsQuery,
+      (snapshot) => {
+        setRooms(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as WatchRoom));
+      },
+      (error) => {
+        console.warn("[useActiveRooms] onSnapshot error:", error);
+      }
+    );
   }, [profile]);
 
   return rooms;
@@ -206,9 +215,15 @@ export function usePublicRooms() {
 
   useEffect(() => {
     const publicRoomsQuery = query(collection(db, "rooms"), where("roomType", "==", "public"), orderBy("updatedAt", "desc"), limit(12));
-    return onSnapshot(publicRoomsQuery, (snapshot) => {
-      setRooms(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as WatchRoom));
-    });
+    return onSnapshot(
+      publicRoomsQuery,
+      (snapshot) => {
+        setRooms(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as WatchRoom));
+      },
+      (error) => {
+        console.warn("[usePublicRooms] onSnapshot error:", error);
+      }
+    );
   }, []);
 
   return rooms;
@@ -221,9 +236,15 @@ export function useRoomMessages(roomId?: string) {
     if (!roomId) return;
 
     const messagesQuery = query(collection(db, "rooms", roomId, "messages"), orderBy("sentAt", "asc"), limit(100));
-    return onSnapshot(messagesQuery, (snapshot) => {
-      setMessages(snapshot.docs.map((message) => ({ id: message.id, ...message.data() }) as ChatMessage));
-    });
+    return onSnapshot(
+      messagesQuery,
+      (snapshot) => {
+        setMessages(snapshot.docs.map((message) => ({ id: message.id, ...message.data() }) as ChatMessage));
+      },
+      (error) => {
+        console.warn("[useRoomMessages] onSnapshot error:", error);
+      }
+    );
   }, [roomId]);
 
   return messages;
@@ -314,20 +335,26 @@ export function useRoomReactions(
       orderBy("createdAt", "desc"),
       limit(15)
     );
-    return onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === "added") {
-          const data = change.doc.data();
-          if (data.createdAt && data.createdAt > now - 3000) {
-            triggerRef.current?.({
-              id: change.doc.id,
-              emoji: data.emoji,
-              userName: data.userName || "Someone"
-            });
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            const data = change.doc.data();
+            if (data.createdAt && data.createdAt > now - 3000) {
+              triggerRef.current?.({
+                id: change.doc.id,
+                emoji: data.emoji,
+                userName: data.userName || "Someone"
+              });
+            }
           }
-        }
-      });
-    });
+        });
+      },
+      (error) => {
+        console.warn("[useRoomReactions] onSnapshot error:", error);
+      }
+    );
   }, [roomId]);
 }
 

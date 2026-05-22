@@ -13,7 +13,7 @@ export function ParticipantsPanel({ participants }: { participants: Participant[
         </div>
         <Badge tone="green">{participants.length} online</Badge>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-3 max-h-[200px] overflow-y-auto scrollbar-thin pr-1">
         {participants.map((participant) => (
           <div key={participant.uid} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/6 p-2">
             <Avatar user={participant} showStatus />

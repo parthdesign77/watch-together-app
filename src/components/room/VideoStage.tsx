@@ -7,6 +7,7 @@ import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { CameraFeed, CameraStage } from "./CameraStage";
 import { StreamVideo } from "./StreamVideo";
+import { useUISound } from "../../hooks/useUISound";
 
 interface VideoStageProps {
   room: WatchRoom;
@@ -16,6 +17,7 @@ interface VideoStageProps {
   cameraFeeds?: CameraFeed[];
   participants?: Participant[];
   onVideoEnded?: () => void;
+  cinemaMode?: boolean;
 }
 
 
@@ -28,9 +30,10 @@ function youtubeEmbed(url: string) {
   return match ? `https://www.youtube.com/embed/${match[1]}?enablejsapi=1&rel=0` : url;
 }
 
-export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cameraFeeds = [], participants = [], onVideoEnded }: VideoStageProps) {
+export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cameraFeeds = [], participants = [], onVideoEnded, cinemaMode = false }: VideoStageProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const { play } = useUISound();
   const [volume, setVolume] = useState(0.86);
   const [drift, setDrift] = useState(0);
   const [hovered, setHovered] = useState(false);
@@ -145,7 +148,11 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       className={
         hasActiveMedia
           ? `relative w-full overflow-hidden rounded-[24px] border border-white/5 bg-[#090909] shadow-2xl transition-all duration-300 ${
-              room.theaterMode ? "min-h-[75vh]" : "aspect-video"
+              room.theaterMode 
+                ? "min-h-[75vh]" 
+                : (activeScreenStream || cinemaMode)
+                  ? "h-full flex-1 min-h-0" 
+                  : "aspect-video"
             }`
           : "relative w-full min-h-[50vh] flex items-center justify-center py-12 transition-all duration-300"
       }
@@ -155,7 +162,33 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       
 
       {activeScreenStream ? (
-        <StreamVideo stream={activeScreenStream} muted={true} className="h-full w-full object-contain" />
+        <div className="relative h-full w-full">
+          <StreamVideo stream={activeScreenStream} muted={true} className="h-full w-full object-contain" />
+          {hovered && (
+            <div className="absolute right-5 bottom-5 z-30">
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={() => {
+                  play("click");
+                  if (stageRef.current) {
+                    if (document.fullscreenElement) {
+                      document.exitFullscreen().catch(() => undefined);
+                    } else {
+                      stageRef.current.requestFullscreen().catch((err) => {
+                        console.error("Failed to enter fullscreen:", err);
+                      });
+                    }
+                  }
+                }}
+                className="bg-black/60 hover:bg-[#ff3d47] text-white border border-white/10 rounded-xl h-10 w-10 flex items-center justify-center backdrop-blur-md shadow-lg transition-all"
+                aria-label="Fullscreen screen share"
+              >
+                <Maximize2 className="h-4.5 w-4.5" />
+              </Button>
+            </div>
+          )}
+        </div>
       ) : (!room.videoUrl || room.status === "waiting" || room.status === "ended") ? (
         <div className="w-full flex items-center justify-center py-4">
           <div className="flex flex-wrap gap-6 items-center justify-center w-full max-w-full mx-auto">
@@ -210,9 +243,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                           style={{ backgroundColor: p.avatar ? undefined : (p.avatarColor || "#ff3d47") }}
                         >
                           {p.avatar ? (
-                            <img src={p.avatar} alt={p.name} className="h-full w-full rounded-full object-cover" />
+                            <img src={p.avatar} alt={p.name || "Guest"} className="h-full w-full rounded-full object-cover" />
                           ) : (
-                            p.name.slice(0, 2).toUpperCase()
+                            (p.name || "Guest").slice(0, 2).toUpperCase()
                           )}
                           {isSpeaking && (
                             <div className="absolute -inset-1 rounded-full border-2 border-emerald-400 animate-ping opacity-75" />
@@ -286,7 +319,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
         </div>
       )}
 
-      {(activeScreenStream || (hasVideo && room.status !== "waiting")) && cameraFeeds.length ? <CameraStage feeds={cameraFeeds} screenShareActive containerRef={stageRef} /> : null}
+      {(!activeScreenStream && hasVideo && room.status !== "waiting" && cameraFeeds.length && !cinemaMode) ? (
+        <CameraStage feeds={cameraFeeds} participants={participants} screenShareActive={false} containerRef={stageRef} />
+      ) : null}
 
       <AnimatePresence>
         {(hovered || !room.isPlaying) && !isYouTube(room.videoUrl) && !activeScreenStream && (room.videoUrl && room.status !== "waiting") ? (
@@ -305,12 +340,13 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
               />
             </div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <Button variant="secondary" size="icon" disabled={!isHost} onClick={() => void seekBy(-10)} aria-label="Back 10 seconds" className="bg-neutral-800 hover:bg-neutral-700 text-white border border-white/5 rounded-xl h-10 w-10">
+              <Button variant="secondary" size="icon" disabled={!isHost} onClick={() => { play("click"); void seekBy(-10); }} aria-label="Back 10 seconds" className="bg-neutral-800 hover:bg-neutral-700 text-white border border-white/5 rounded-xl h-10 w-10">
                 <SkipBack className="h-4.5 w-4.5" />
               </Button>
               <Button
                 disabled={!isHost}
                 onClick={() => {
+                  play("click");
                   if (videoRef.current) {
                     if (room.isPlaying) {
                       videoRef.current.pause();
@@ -326,7 +362,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                 {room.isPlaying ? <Pause className="h-4.5 w-4.5" /> : <Play className="h-4.5 w-4.5" />}
                 {room.isPlaying ? "Pause" : "Play"}
               </Button>
-              <Button variant="secondary" onClick={resync} className="bg-neutral-800 hover:bg-neutral-700 text-white border border-white/5 rounded-xl h-10 px-4 flex items-center gap-1.5 font-semibold">
+              <Button variant="secondary" onClick={() => { play("click"); void resync(); }} className="bg-neutral-800 hover:bg-neutral-700 text-white border border-white/5 rounded-xl h-10 px-4 flex items-center gap-1.5 font-semibold">
                 <RefreshCw className="h-4 w-4" />
                 Resync
               </Button>
@@ -347,13 +383,16 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => videoRef.current?.requestPictureInPicture?.()}
+                onClick={() => {
+                  play("click");
+                  videoRef.current?.requestPictureInPicture?.();
+                }}
                 aria-label="Picture in picture"
                 className="hover:bg-white/5 text-neutral-300 rounded-xl h-10 w-10 flex items-center justify-center"
               >
                 <PictureInPicture2 className="h-4.5 w-4.5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => videoRef.current?.requestFullscreen()} aria-label="Fullscreen" className="hover:bg-white/5 text-neutral-300 rounded-xl h-10 w-10 flex items-center justify-center">
+              <Button variant="ghost" size="icon" onClick={() => { play("click"); videoRef.current?.requestFullscreen(); }} aria-label="Fullscreen" className="hover:bg-white/5 text-neutral-300 rounded-xl h-10 w-10 flex items-center justify-center">
                 <Maximize2 className="h-4.5 w-4.5" />
               </Button>
             </div>

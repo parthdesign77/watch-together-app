@@ -34,6 +34,8 @@ export interface Participant {
   isBuffering?: boolean;
   isScreenSharing?: boolean;
   isCameraOn?: boolean;
+  screenStreamId?: string | null;
+  cameraStreamId?: string | null;
   connectionQuality?: "excellent" | "good" | "fair" | "poor";
 }
 

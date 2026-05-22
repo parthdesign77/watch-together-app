@@ -26,7 +26,7 @@ export function ChatPanel({ roomId, profile }: ChatPanelProps) {
   }
 
   return (
-    <aside className="glass flex min-h-[520px] flex-col rounded-lg">
+    <aside className="glass flex min-h-[350px] xl:min-h-0 xl:h-full flex-col rounded-lg">
       <div className="flex items-center justify-between border-b border-white/10 p-4">
         <div>
           <h2 className="font-display text-lg font-bold">Live Chat</h2>

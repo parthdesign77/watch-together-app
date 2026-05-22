@@ -193,11 +193,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             await ensureProfile(currentUser);
             // Real-time synchronization of the user profile document
-            unsubscribeProfile = onSnapshot(doc(db, "users", currentUser.uid), (snapshot) => {
-              if (snapshot.exists()) {
-                setProfile({ uid: currentUser.uid, ...snapshot.data() } as UserProfile);
+            unsubscribeProfile = onSnapshot(
+              doc(db, "users", currentUser.uid),
+              (snapshot) => {
+                if (snapshot.exists()) {
+                  setProfile({ uid: currentUser.uid, ...snapshot.data() } as UserProfile);
+                }
+              },
+              (error) => {
+                console.warn("[AuthContext] profile onSnapshot error:", error);
               }
-            });
+            );
           } catch (profileError) {
             console.warn("[Watch Together] Could not load/create user profile:", profileError);
             setProfile({
