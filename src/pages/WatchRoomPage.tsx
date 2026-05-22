@@ -174,7 +174,7 @@ export function WatchRoomPage() {
         if (item.stream === remoteScreenStream) {
           return false;
         }
-        return participant.isCameraOn || !room?.isScreenSharing;
+        return participant.isCameraOn === true;
       })
       .forEach((item) => {
         feeds.push({

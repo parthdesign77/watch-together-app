@@ -44,6 +44,13 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const analyserCleanup = useRef<(() => void) | null>(null);
   const candidateQueue = useRef<Record<string, RTCIceCandidateInit[]>>({});
 
+  const participantsRef = useRef(participants);
+  useEffect(() => {
+    participantsRef.current = participants;
+  }, [participants]);
+
+  const peerJoinedAt = useRef<Record<string, number>>({});
+
   const processQueuedCandidates = useCallback(async (remoteUid: string) => {
     const peer = peers.current[remoteUid];
     if (!peer || !peer.remoteDescription) return;
@@ -61,8 +68,10 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const sendSignal = useCallback(
     async (payload: Omit<SignalPayload, "createdAt">) => {
       if (!roomId) return;
+      const receiverJoinedAt = participantsRef.current.find((p) => p.uid === payload.to)?.joinedAt || 0;
       await addDoc(collection(db, "rooms", roomId, "signals"), {
         ...payload,
+        receiverJoinedAt,
         createdAt: Date.now(),
         createdAtServer: serverTimestamp()
       });
@@ -108,6 +117,15 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
       peer.onconnectionstatechange = () => {
         if (["closed", "failed", "disconnected"].includes(peer.connectionState)) {
+          console.log(`Connection state with ${remoteUid} changed to ${peer.connectionState}. Cleaning up.`);
+          try {
+            peer.close();
+          } catch (e) {}
+          if (peers.current[remoteUid] === peer) {
+            delete peers.current[remoteUid];
+            delete candidateQueue.current[remoteUid];
+            delete peerJoinedAt.current[remoteUid];
+          }
           setRemoteStreams((current) => current.filter((item) => item.uid !== remoteUid));
         }
       };
@@ -351,20 +369,27 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   useEffect(() => {
     if (!roomId || !uid) return;
 
-    const listenerStartedAt = Date.now();
     const signalsQuery = query(collection(db, "rooms", roomId, "signals"), where("to", "==", uid), orderBy("createdAt", "asc"));
     return onSnapshot(
       signalsQuery,
       (snapshot) => {
         snapshot.docChanges().forEach((change) => {
-          if (change.type !== "added" || processedSignals.current.has(change.doc.id)) return;
+          if (change.type !== "added") return;
+
+          if (processedSignals.current.has(change.doc.id)) return;
           processedSignals.current.add(change.doc.id);
 
-          const signal = change.doc.data() as SignalPayload;
+          const signal = change.doc.data() as SignalPayload & { receiverJoinedAt?: number };
 
-          // Ignore stale signaling documents from older sessions/reloads
-          if (signal.createdAt && signal.createdAt < listenerStartedAt - 5000) {
-            console.log("Ignoring stale signaling document:", change.doc.id);
+          // Filter out signaling documents older than 1 minute to avoid processing old session data
+          const signalAge = Date.now() - signal.createdAt;
+          if (signalAge > 60000) return;
+
+          // Ignore signals targeted to an older session of this user
+          const localParticipant = participantsRef.current.find((p) => p.uid === uid);
+          const localJoinedAt = localParticipant?.joinedAt || 0;
+          if (signal.receiverJoinedAt && localJoinedAt && signal.receiverJoinedAt !== localJoinedAt) {
+            console.log(`Ignoring signal from ${signal.from} with receiverJoinedAt ${signal.receiverJoinedAt} because our localJoinedAt is ${localJoinedAt}`);
             return;
           }
 
@@ -438,15 +463,23 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   }, [muted, roomId, speaking, uid]);
 
   // Synchronize peer connections and remote streams with current participants
+  const participantsKey = participants
+    .map((p) => `${p.uid}:${p.joinedAt}`)
+    .sort()
+    .join(",");
+
   useEffect(() => {
     if (!uid) return;
 
     const currentRemoteUids = new Set(participants.map((p) => p.uid).filter((id) => id !== uid));
 
-    // Close and clean up connections for participants who left
+    // Close and clean up connections for participants who left or rejoined (joinedAt changed)
     Object.keys(peers.current).forEach((remoteUid) => {
-      if (!currentRemoteUids.has(remoteUid)) {
-        console.log(`Cleaning up WebRTC peer connection for left user: ${remoteUid}`);
+      const participant = participants.find((p) => p.uid === remoteUid);
+      const wasRejoined = participant && peerJoinedAt.current[remoteUid] !== participant.joinedAt;
+
+      if (!currentRemoteUids.has(remoteUid) || wasRejoined) {
+        console.log(`Cleaning up WebRTC peer connection for user ${remoteUid} (left or rejoined)`);
         try {
           peers.current[remoteUid].close();
         } catch (e) {
@@ -454,17 +487,24 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         }
         delete peers.current[remoteUid];
         delete candidateQueue.current[remoteUid];
+        delete peerJoinedAt.current[remoteUid];
       }
     });
 
     // Clean up corresponding remote streams
-    setRemoteStreams((current) => current.filter((item) => currentRemoteUids.has(item.uid)));
+    setRemoteStreams((current) => current.filter((item) => currentRemoteUids.has(item.uid) && peerJoinedAt.current[item.uid] !== undefined));
+
+    // Track the active peer joinedAt timestamps
+    const remotesToConnect = participants.filter((p) => p.uid !== uid);
+    remotesToConnect.forEach((p) => {
+      peerJoinedAt.current[p.uid] = p.joinedAt;
+    });
 
     // Re-negotiate/connect to current participants in the room
     if (currentRemoteUids.size > 0) {
       void broadcastOffers();
     }
-  }, [participants.map((p) => p.uid).sort().join(","), uid, broadcastOffers]);
+  }, [participantsKey, uid, broadcastOffers]);
 
   useEffect(() => {
     return () => {
