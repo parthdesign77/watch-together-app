@@ -71,11 +71,26 @@ export function DeviceSettingsModal({ open, onClose }: DeviceSettingsModalProps)
       stopTestStream();
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined
+            }
+          });
+        } catch (err) {
+          console.warn("DeviceSettingsModal getUserMedia with exact deviceId failed, trying fallback...", err);
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? audioInputDeviceId : undefined
+              }
+            });
+          } catch (err2) {
+            console.warn("DeviceSettingsModal fallback failed, trying minimum constraints...", err2);
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           }
-        });
+        }
 
         if (!active) {
           stream.getTracks().forEach((t) => t.stop());
@@ -83,28 +98,47 @@ export function DeviceSettingsModal({ open, onClose }: DeviceSettingsModalProps)
         }
 
         testStreamRef.current = stream;
-        const audioContext = new AudioContext();
-        audioContextRef.current = audioContext;
 
-        const source = audioContext.createMediaStreamSource(stream);
-        const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        source.connect(analyser);
+        let audioContext: AudioContext | null = null;
+        let analyser: AnalyserNode | null = null;
 
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        try {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            audioContext = new AudioContextClass();
+            if (audioContext.state === "suspended") {
+              void audioContext.resume();
+            }
+            audioContextRef.current = audioContext;
 
-        const updateMeter = () => {
-          if (!active) return;
-          analyser.getByteFrequencyData(dataArray);
-          const sum = dataArray.reduce((acc, val) => acc + val, 0);
-          const average = sum / dataArray.length;
-          // Normalize level between 0 and 100 for display
-          const normalized = Math.min(100, Math.round((average / 128) * 100));
-          setMicLevel(normalized);
-          animationFrameRef.current = requestAnimationFrame(updateMeter);
-        };
+            const source = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+          }
+        } catch (ctxError) {
+          console.error("DeviceSettingsModal failed to initialize AudioContext:", ctxError);
+          audioContext = null;
+          analyser = null;
+        }
 
-        updateMeter();
+        if (analyser) {
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+          const updateMeter = () => {
+            if (!active || !analyser) return;
+            analyser.getByteFrequencyData(dataArray);
+            const sum = dataArray.reduce((acc, val) => acc + val, 0);
+            const average = sum / dataArray.length;
+            const normalized = Math.min(100, Math.round((average / 128) * 100));
+            setMicLevel(normalized);
+            animationFrameRef.current = requestAnimationFrame(updateMeter);
+          };
+
+          updateMeter();
+        } else {
+          setMicLevel(0);
+        }
       } catch (err) {
         console.warn("Failed to start mic test level stream:", err);
         setMicLevel(0);

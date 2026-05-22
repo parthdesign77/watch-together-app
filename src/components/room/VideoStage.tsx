@@ -68,7 +68,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       return () => clearTimeout(timer);
     }
   }, [showZoomIndicator, objectFit]);
-  const activeScreenStream = isMobile ? null : (screenStream || remoteScreenStream || null);
+  const activeScreenStream = screenStream || remoteScreenStream || null;
   const hasVideo = Boolean(room.videoUrl);
   const hasActiveMedia = Boolean(
     activeScreenStream || (hasVideo && room.status !== "waiting" && room.status !== "ended")
@@ -247,7 +247,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
           <div className="flex flex-wrap gap-3 sm:gap-6 items-center justify-center w-full max-w-full mx-auto">
             {participants.map((p) => {
               const isLocal = profile && p.uid === profile.uid;
-              const isSharing = isMobile ? false : p.isScreenSharing;
+              const isSharing = p.isScreenSharing;
               const screenFeed = isSharing ? (isLocal ? screenStream : (p.uid === room.screenShareHost ? remoteScreenStream : null)) : null;
               
               const feed = cameraFeeds.find((f) => f.id.startsWith(p.uid));

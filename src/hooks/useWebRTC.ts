@@ -336,107 +336,150 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     analyserCleanup.current?.();
 
     console.log("[WebRTC] Starting voice capture...");
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
-        echoCancellation: true,
-        noiseSuppression: noiseSuppressionEnabled,
-        autoGainControl: true,
-        latency: 0,
-        channelCount: 1
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
+          echoCancellation: true,
+          noiseSuppression: noiseSuppressionEnabled,
+          autoGainControl: true,
+          latency: 0,
+          channelCount: 1
+        }
+      } as any);
+    } catch (err) {
+      console.warn("[WebRTC] getUserMedia with full constraints failed, trying robust mobile fallback...", err);
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? audioInputDeviceId : undefined,
+            echoCancellation: true,
+            noiseSuppression: noiseSuppressionEnabled,
+            autoGainControl: true
+          }
+        });
+      } catch (err2) {
+        console.warn("[WebRTC] Fallback constraints failed, trying absolute bare minimum...", err2);
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true
+        });
       }
-    } as any);
+    }
     voiceStreamRef.current = stream;
 
-    const audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
-    
-    let processedStream: MediaStream;
+    let processedStream: MediaStream = stream;
+    let analyser: AnalyserNode | null = null;
+    let audioContext: AudioContext | null = null;
 
-    if (noiseSuppressionEnabled) {
-      console.log("[WebRTC] Applying Krisp AI Noise Cancellation filter graph...");
-      
-      const highpass = audioContext.createBiquadFilter();
-      highpass.type = "highpass";
-      highpass.frequency.value = 150; // Cut low-end hums/AC noise
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        audioContext = new AudioContextClass();
+        if (audioContext.state === "suspended") {
+          void audioContext.resume();
+        }
+        
+        const source = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser();
+        
+        if (noiseSuppressionEnabled) {
+          console.log("[WebRTC] Applying Krisp AI Noise Cancellation filter graph...");
+          
+          const highpass = audioContext.createBiquadFilter();
+          highpass.type = "highpass";
+          highpass.frequency.value = 150; // Cut low-end hums/AC noise
 
-      const lowpass = audioContext.createBiquadFilter();
-      lowpass.type = "lowpass";
-      lowpass.frequency.value = 4000; // Cut high-frequency hiss
+          const lowpass = audioContext.createBiquadFilter();
+          lowpass.type = "lowpass";
+          lowpass.frequency.value = 4000; // Cut high-frequency hiss
 
-      const compressor = audioContext.createDynamicsCompressor();
-      compressor.threshold.value = -30; // Threshold in dB
-      compressor.knee.value = 10;
-      compressor.ratio.value = 12;
-      compressor.attack.value = 0.003; // Attack in seconds
-      compressor.release.value = 0.15; // Release in seconds
+          const compressor = audioContext.createDynamicsCompressor();
+          compressor.threshold.value = -30; // Threshold in dB
+          compressor.knee.value = 10;
+          compressor.ratio.value = 12;
+          compressor.attack.value = 0.003; // Attack in seconds
+          compressor.release.value = 0.15; // Release in seconds
 
-      const destination = audioContext.createMediaStreamDestination();
+          const destination = audioContext.createMediaStreamDestination();
 
-      // Connect graph: source -> highpass -> lowpass -> compressor -> destination & analyser
-      source.connect(highpass);
-      highpass.connect(lowpass);
-      lowpass.connect(compressor);
-      compressor.connect(destination);
-      compressor.connect(analyser);
+          // Connect graph: source -> highpass -> lowpass -> compressor -> destination & analyser
+          source.connect(highpass);
+          highpass.connect(lowpass);
+          lowpass.connect(compressor);
+          compressor.connect(destination);
+          compressor.connect(analyser);
 
-      processedStream = destination.stream;
-      processedVoiceStreamRef.current = processedStream;
-    } else {
-      source.connect(analyser);
+          processedStream = destination.stream;
+          processedVoiceStreamRef.current = processedStream;
+        } else {
+          source.connect(analyser);
+          processedStream = stream;
+          processedVoiceStreamRef.current = null;
+        }
+      }
+    } catch (audioGraphError) {
+      console.error("[WebRTC] Failed to initialize AudioContext audio graph, falling back to raw stream:", audioGraphError);
       processedStream = stream;
       processedVoiceStreamRef.current = null;
+      analyser = null;
     }
 
     setVoiceStream(processedStream);
     addLocalStream(processedStream);
     setMuted(false);
 
-    analyser.fftSize = 256;
-    const data = new Uint8Array(analyser.frequencyBinCount);
     let raf = 0;
-
     let speakingTimer: any = null;
     let currentSpeaking = false;
 
-    const tick = () => {
-      analyser.getByteFrequencyData(data);
-      const volume = data.reduce((sum, value) => sum + value, 0) / data.length;
-      
-      // Check track enabled state on the processed stream
-      const isTrackMuted = processedStream.getAudioTracks().some((t) => !t.enabled);
-      
-      const threshold = 18;
-      const isAboveThreshold = volume > threshold && !isTrackMuted;
+    if (analyser) {
+      analyser.fftSize = 256;
+      const data = new Uint8Array(analyser.frequencyBinCount);
 
-      if (isAboveThreshold) {
-        if (!currentSpeaking) {
-          currentSpeaking = true;
-          setSpeaking(true);
-        }
-        if (speakingTimer) {
-          clearTimeout(speakingTimer);
-          speakingTimer = null;
-        }
-      } else {
-        if (currentSpeaking && !speakingTimer) {
-          speakingTimer = setTimeout(() => {
-            currentSpeaking = false;
-            setSpeaking(false);
+      const tick = () => {
+        if (!analyser) return;
+        analyser.getByteFrequencyData(data);
+        const volume = data.reduce((sum, value) => sum + value, 0) / data.length;
+        
+        // Check track enabled state on the processed stream
+        const isTrackMuted = processedStream.getAudioTracks().some((t) => !t.enabled);
+        
+        const threshold = 18;
+        const isAboveThreshold = volume > threshold && !isTrackMuted;
+
+        if (isAboveThreshold) {
+          if (!currentSpeaking) {
+            currentSpeaking = true;
+            setSpeaking(true);
+          }
+          if (speakingTimer) {
+            clearTimeout(speakingTimer);
             speakingTimer = null;
-          }, 350);
+          }
+        } else {
+          if (currentSpeaking && !speakingTimer) {
+            speakingTimer = setTimeout(() => {
+              currentSpeaking = false;
+              setSpeaking(false);
+              speakingTimer = null;
+            }, 350);
+          }
         }
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    tick();
+        raf = requestAnimationFrame(tick);
+      };
+      tick();
 
-    analyserCleanup.current = () => {
-      cancelAnimationFrame(raf);
-      if (speakingTimer) clearTimeout(speakingTimer);
-      void audioContext.close();
-    };
+      analyserCleanup.current = () => {
+        cancelAnimationFrame(raf);
+        if (speakingTimer) clearTimeout(speakingTimer);
+        if (audioContext) {
+          void audioContext.close().catch((err) => console.warn("Error closing AudioContext:", err));
+        }
+      };
+    } else {
+      analyserCleanup.current = () => {};
+    }
   }, [addLocalStream, removeLocalStream, audioInputDeviceId, noiseSuppressionEnabled]);
 
   useEffect(() => {

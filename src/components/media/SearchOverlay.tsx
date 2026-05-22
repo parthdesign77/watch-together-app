@@ -15,12 +15,12 @@ export function SearchOverlay() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="glass flex items-center gap-2 rounded-full p-1.5 pl-4 pr-2">
+    <form onSubmit={onSubmit} className="glass flex items-center gap-1.5 rounded-full p-1 pl-3.5 pr-2">
       <Search className="h-5 w-5 text-muted flex-shrink-0" />
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search movies, anime, friends watching..."
+        placeholder="Search movies, anime, friends..."
         className="h-9 min-w-0 flex-1 bg-transparent px-1 text-base md:text-sm text-snow outline-none placeholder:text-muted placeholder:text-xs md:placeholder:text-sm"
       />
       {query ? (

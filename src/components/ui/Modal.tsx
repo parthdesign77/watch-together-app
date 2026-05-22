@@ -33,7 +33,7 @@ export function Modal({ open, title, children, onClose }: ModalProps) {
           aria-modal="true"
         >
           <motion.div
-            className="glass cinema-border w-full max-w-xl rounded-lg p-5 my-auto max-h-[90vh] overflow-y-auto"
+            className="glass cinema-border w-full max-w-xl rounded-lg p-4 sm:p-5 my-auto max-h-[90vh] overflow-y-auto"
             initial={{ y: 18, scale: 0.98, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 18, scale: 0.98, opacity: 0 }}

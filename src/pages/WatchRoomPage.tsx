@@ -555,7 +555,7 @@ export function WatchRoomPage() {
   const currentRoom = room;
   const currentProfile = profile;
   const remoteAudioStreams = webRTC.remoteStreams.filter((item) => item.stream.getAudioTracks().length > 0);
-  const screenShareActive = isMobile ? false : Boolean(webRTC.screenStream || remoteScreenStream || room.isScreenSharing);
+  const screenShareActive = Boolean(webRTC.screenStream || remoteScreenStream || room.isScreenSharing);
   const cameraOnlyMode = cameraFeeds.length > 0 && !screenShareActive;
 
   function cleanupWebRTC() {
@@ -567,13 +567,17 @@ export function WatchRoomPage() {
     }
   }
 
-  async function handleConfirmLeave() {
+  function handleConfirmLeave() {
     isExitingRef.current = true;
     cleanupWebRTC();
     if (isHost) {
-      await endRoom(currentRoom.id);
+      endRoom(currentRoom.id).catch((err) => {
+        console.error("Failed to end room in background:", err);
+      });
     } else {
-      await leaveRoom(currentRoom.id, currentProfile.uid);
+      leaveRoom(currentRoom.id, currentProfile.uid).catch((err) => {
+        console.error("Failed to leave room in background:", err);
+      });
     }
     navigate("/dashboard");
   }
