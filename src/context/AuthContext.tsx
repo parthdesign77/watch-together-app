@@ -69,7 +69,8 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 /* ------------------------------------------------------------------ */
 const avatarColors = ["#DC2626", "#EF4444", "#991B1B", "#7F1D1D", "#F43F5E"];
 
-function colorFor(uid: string) {
+function colorFor(uid?: string) {
+  if (!uid) return avatarColors[0];
   return avatarColors[uid.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) % avatarColors.length];
 }
 

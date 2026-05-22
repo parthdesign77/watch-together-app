@@ -7,7 +7,7 @@ import { useUiStore } from "../../store/uiStore";
 
 const getParticipantPing = (p: Participant) => {
   let basePing = 12;
-  const hash = p.uid.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = (p?.uid || "").split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   
   if (p.connectionQuality === "poor") {
     basePing = 150 + (hash % 100);

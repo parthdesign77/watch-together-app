@@ -368,60 +368,62 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     }
     voiceStreamRef.current = stream;
 
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
     let processedStream: MediaStream = stream;
     let analyser: AnalyserNode | null = null;
     let audioContext: AudioContext | null = null;
 
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        audioContext = new AudioContextClass();
-        if (audioContext.state === "suspended") {
-          void audioContext.resume();
-        }
-        
-        const source = audioContext.createMediaStreamSource(stream);
-        analyser = audioContext.createAnalyser();
-        
-        // Detect mobile viewports or user agents to bypass the buggy WebKit destination graph
-        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
-
-        if (noiseSuppressionEnabled && !isMobileDevice) {
-          console.log("[WebRTC] Applying Krisp AI Noise Cancellation filter graph...");
-          
-          const highpass = audioContext.createBiquadFilter();
-          highpass.type = "highpass";
-          highpass.frequency.value = 150; // Cut low-end hums/AC noise
-
-          const lowpass = audioContext.createBiquadFilter();
-          lowpass.type = "lowpass";
-          lowpass.frequency.value = 4000; // Cut high-frequency hiss
-
-          const compressor = audioContext.createDynamicsCompressor();
-          compressor.threshold.value = -30; // Threshold in dB
-          compressor.knee.value = 10;
-          compressor.ratio.value = 12;
-          compressor.attack.value = 0.003; // Attack in seconds
-          compressor.release.value = 0.15; // Release in seconds
-
-          const destination = audioContext.createMediaStreamDestination();
-
-          // Connect graph: source -> highpass -> lowpass -> compressor -> destination & analyser
-          source.connect(highpass);
-          highpass.connect(lowpass);
-          lowpass.connect(compressor);
-          compressor.connect(destination);
-          compressor.connect(analyser);
-
-          processedStream = destination.stream;
-          processedVoiceStreamRef.current = processedStream;
-        } else {
-          if (isMobileDevice) {
-            console.log("[WebRTC] Mobile device detected: Bypassing Web Audio destination stream to avoid WebKit serialization bugs.");
+      if (isMobileDevice) {
+        console.log("[WebRTC] Mobile device detected: Completely bypassing Web Audio Graph to avoid WebKit silencing/routing issues.");
+        processedStream = stream;
+        processedVoiceStreamRef.current = null;
+        analyser = null;
+      } else {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          audioContext = new AudioContextClass();
+          if (audioContext.state === "suspended") {
+            void audioContext.resume();
           }
-          source.connect(analyser);
-          processedStream = stream;
-          processedVoiceStreamRef.current = null;
+          
+          const source = audioContext.createMediaStreamSource(stream);
+          analyser = audioContext.createAnalyser();
+
+          if (noiseSuppressionEnabled) {
+            console.log("[WebRTC] Applying Krisp AI Noise Cancellation filter graph...");
+            
+            const highpass = audioContext.createBiquadFilter();
+            highpass.type = "highpass";
+            highpass.frequency.value = 150; // Cut low-end hums/AC noise
+
+            const lowpass = audioContext.createBiquadFilter();
+            lowpass.type = "lowpass";
+            lowpass.frequency.value = 4000; // Cut high-frequency hiss
+
+            const compressor = audioContext.createDynamicsCompressor();
+            compressor.threshold.value = -30; // Threshold in dB
+            compressor.knee.value = 10;
+            compressor.ratio.value = 12;
+            compressor.attack.value = 0.003; // Attack in seconds
+            compressor.release.value = 0.15; // Release in seconds
+
+            const destination = audioContext.createMediaStreamDestination();
+
+            // Connect graph: source -> highpass -> lowpass -> compressor -> destination & analyser
+            source.connect(highpass);
+            highpass.connect(lowpass);
+            lowpass.connect(compressor);
+            compressor.connect(destination);
+            compressor.connect(analyser);
+
+            processedStream = destination.stream;
+            processedVoiceStreamRef.current = processedStream;
+          } else {
+            source.connect(analyser);
+            processedStream = stream;
+            processedVoiceStreamRef.current = null;
+          }
         }
       }
     } catch (audioGraphError) {
@@ -641,8 +643,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   }, [addLocalStream, stopScreenShare]);
 
   const toggleMute = useCallback((forceState?: boolean) => {
-    if (!voiceStreamRef.current) {
-      console.log("[WebRTC] toggleMute clicked while mic stream is uninitialized. Requesting user permission and starting capture.");
+    const isStreamActive = voiceStreamRef.current && voiceStreamRef.current.getAudioTracks().some((t) => t.readyState === "live");
+    if (!isStreamActive) {
+      console.log("[WebRTC] toggleMute clicked while mic stream is uninitialized or inactive. Requesting user permission and starting capture.");
       void startVoice();
       return;
     }

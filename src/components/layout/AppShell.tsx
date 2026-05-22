@@ -220,12 +220,26 @@ export function AppShell() {
             />
             {/* Drawer */}
             <motion.aside
-              className="fixed bottom-0 left-0 top-16 z-50 w-72 max-w-[85vw] border-r border-white/10 bg-ink/90 p-4 pb-6 backdrop-blur-2xl lg:hidden"
+              className="fixed bottom-0 left-0 top-0 z-50 w-72 max-w-[85vw] border-r border-white/10 bg-ink/95 p-4 pb-6 backdrop-blur-2xl lg:hidden flex flex-col"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10 select-none">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-cyan via-premium to-movie shadow-glow">
+                    <MonitorPlay className="h-4.5 w-4.5 text-white" />
+                  </span>
+                  <span>
+                    <span className="block font-display text-sm font-extrabold leading-4 text-white">Watch Together</span>
+                    <span className="text-[10px] text-muted font-semibold">Cinema rooms in sync</span>
+                  </span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 rounded-full text-muted hover:text-white" onClick={toggleSidebar} aria-label="Close sidebar">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </Button>
+              </div>
               <div className="flex h-full flex-col overflow-y-auto scrollbar-none pb-safe">
                 <nav className="space-y-1">
                   {navItems.map((item) => (
@@ -277,19 +291,21 @@ export function AppShell() {
         </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-ink/82 px-2 py-2 backdrop-blur-2xl safe-bottom lg:hidden">
+      <nav className="fixed bottom-4 left-4 right-4 z-40 rounded-2xl border border-white/10 bg-neutral-950/65 px-2 py-1.5 backdrop-blur-xl shadow-[0_12px_36px_rgba(0,0,0,0.65)] safe-bottom lg:hidden transition-all duration-300">
         <div className="grid grid-cols-5 gap-1">
           {navItems.slice(0, 5).map(({ href, label, icon: Icon }) => (
             <NavLink
               key={href}
               to={href}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-[11px] font-semibold ${
-                  isActive ? "bg-white/12 text-snow" : "text-muted"
+                `flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-black tracking-wide uppercase transition-all duration-200 ${
+                  isActive 
+                    ? "bg-white/10 text-white shadow-[0_0_12px_rgba(255,255,255,0.05)] scale-105" 
+                    : "text-neutral-400 hover:text-neutral-200 active:scale-95"
                 }`
               }
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-4.5 w-4.5" />
               <span>{label}</span>
             </NavLink>
           ))}
