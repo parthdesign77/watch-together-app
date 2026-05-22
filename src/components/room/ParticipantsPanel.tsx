@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { MonitorUp, Video, Wifi, WifiOff, Hand, Volume2, VolumeX, Crown, Sparkles } from "lucide-react";
 import type { Participant } from "../../types";
 import { Avatar } from "../ui/Avatar";
@@ -21,7 +22,7 @@ const getParticipantPing = (p: Participant) => {
   return `${basePing}ms`;
 };
 
-export function ParticipantsPanel({ participants }: { participants: Participant[] }) {
+export const ParticipantsPanel = memo(function ParticipantsPanel({ participants }: { participants: Participant[] }) {
   const { profile } = useAuth();
   const participantVolumes = useUiStore((state) => state.participantVolumes);
   const setParticipantVolume = useUiStore((state) => state.setParticipantVolume);
@@ -143,4 +144,4 @@ export function ParticipantsPanel({ participants }: { participants: Participant[
       </div>
     </section>
   );
-}
+});

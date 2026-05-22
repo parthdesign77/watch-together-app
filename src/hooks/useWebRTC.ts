@@ -115,7 +115,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             console.log(`[Track Add] Adding local track: kind=${track.kind}, enabled=${track.enabled}, readyState=${track.readyState} to peer ${remoteUid}`);
             const sender = peer.addTrack(track, stream);
             
-            // Apply screen-share bitrate constraints to new peers
+            // Apply screen-share bitrate and framerate constraints to new peers
             if (sender && track.kind === "video" && stream === screenStreamRef.current) {
               try {
                 const params = sender.getParameters();
@@ -124,14 +124,34 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
                 }
                 const ourParticipant = participantsRef.current.find(p => p.uid === uid);
                 const myPlan = ourParticipant?.subscriptionPlan || "free";
+                const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
                 
                 let maxBitrate = 800000;
                 if (myPlan === "premium") {
-                  maxBitrate = 6000000;
+                  maxBitrate = isMobileDevice ? 1500000 : 6000000;
                 } else if (myPlan === "standard") {
-                  maxBitrate = 2500000;
+                  maxBitrate = isMobileDevice ? 1000000 : 2500000;
+                } else {
+                  maxBitrate = isMobileDevice ? 600000 : 800000;
                 }
+                
                 params.encodings[0].maxBitrate = maxBitrate;
+                
+                // Mobile-specific encoder scaling and framerate optimizations
+                if (isMobileDevice) {
+                  if (myPlan === "premium") {
+                    params.encodings[0].scaleResolutionDownBy = 1.2;
+                    params.encodings[0].maxFramerate = 24;
+                  } else if (myPlan === "standard") {
+                    params.encodings[0].scaleResolutionDownBy = 1.6;
+                    params.encodings[0].maxFramerate = 20;
+                  } else {
+                    params.encodings[0].scaleResolutionDownBy = 2.2;
+                    params.encodings[0].maxFramerate = 15;
+                  }
+                  console.log(`[WebRTC Mobile] Optimized screen-share encodings on peer init: scale=${params.encodings[0].scaleResolutionDownBy}, fps=${params.encodings[0].maxFramerate}`);
+                }
+                
                 await sender.setParameters(params);
                 console.log(`[WebRTC] Enforced screen-share maxBitrate: ${maxBitrate} bps for new peer ${remoteUid}`);
               } catch (bitrateErr) {
@@ -338,13 +358,34 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
               if (!params.encodings) {
                 params.encodings = [{}];
               }
+              const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+              
               let maxBitrate = 800000;
               if (myPlan === "premium") {
-                maxBitrate = 6000000;
+                maxBitrate = isMobileDevice ? 1500000 : 6000000;
               } else if (myPlan === "standard") {
-                maxBitrate = 2500000;
+                maxBitrate = isMobileDevice ? 1000000 : 2500000;
+              } else {
+                maxBitrate = isMobileDevice ? 600000 : 800000;
               }
+              
               params.encodings[0].maxBitrate = maxBitrate;
+              
+              // Mobile-specific encoder scaling and framerate optimizations
+              if (isMobileDevice) {
+                if (myPlan === "premium") {
+                  params.encodings[0].scaleResolutionDownBy = 1.2;
+                  params.encodings[0].maxFramerate = 24;
+                } else if (myPlan === "standard") {
+                  params.encodings[0].scaleResolutionDownBy = 1.6;
+                  params.encodings[0].maxFramerate = 20;
+                } else {
+                  params.encodings[0].scaleResolutionDownBy = 2.2;
+                  params.encodings[0].maxFramerate = 15;
+                }
+                console.log(`[WebRTC Mobile] Optimized screen-share encodings for mobile: scale=${params.encodings[0].scaleResolutionDownBy}, fps=${params.encodings[0].maxFramerate}`);
+              }
+              
               await sender.setParameters(params);
               console.log(`[WebRTC] Enforced screen-share maxBitrate: ${maxBitrate} bps for peer`);
             } catch (bitrateErr) {
@@ -728,10 +769,21 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
       throw new Error("Screen sharing is not supported by your current browser or mobile device. Please use a modern desktop browser (Chrome, Firefox, Safari) or a supporting mobile browser.");
     }
-    console.log(`[WebRTC] Starting screen share with mode: ${mode}, plan tier: ${plan || "free"}`);
+    
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    
+    console.log(`[WebRTC] Starting screen share with mode: ${mode}, plan tier: ${plan || "free"}, isMobile: ${isMobileDevice}`);
     
     let videoConstraints: MediaTrackConstraints;
-    if (plan === "premium") {
+    if (isMobileDevice) {
+      // Mobile screen shares are optimized for CPU, bandwidth, and battery: ideal 480p, capped at 720p, frameRate 20-24
+      videoConstraints = {
+        width: { ideal: 854, max: 1280 },
+        height: { ideal: 480, max: 720 },
+        frameRate: { ideal: 20, max: 24 }
+      };
+    } else if (plan === "premium") {
       videoConstraints = {
         displaySurface: mode === "entire-screen" ? "monitor" : "window",
         width: { ideal: 1920 },
@@ -755,23 +807,17 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     }
 
     let stream: MediaStream;
-    try {
-      // Use noise suppression and echo cancellation to prevent screeching/howling feedback loops,
-      // while keeping autoGainControl false to prevent silence from being boosted into an irritating static hiss.
-      // We also exclude self browser tab surface to prevent mirroring and loopbacks.
+    if (isIOS) {
+      console.log("[WebRTC] iOS detected. Requesting video-only screen share to bypass Apple sandbox constraints cleanly.");
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: videoConstraints,
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: false
-        } as any,
-        selfBrowserSurface: "exclude",
-        systemAudio: "include"
+        audio: false
       } as any);
-    } catch (e) {
-      console.warn("Failed screen share with high-fidelity audio, trying standard audio...", e);
+    } else {
       try {
+        // Use noise suppression and echo cancellation to prevent screeching/howling feedback loops,
+        // while keeping autoGainControl false to prevent silence from being boosted into an irritating static hiss.
+        // We also exclude self browser tab surface to prevent mirroring and loopbacks.
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: videoConstraints,
           audio: {
@@ -779,15 +825,29 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             noiseSuppression: true,
             autoGainControl: false
           } as any,
-          selfBrowserSurface: "exclude"
+          selfBrowserSurface: "exclude",
+          systemAudio: "include"
         } as any);
-      } catch (e2) {
-        console.warn("Failed screen share with standard audio, trying video-only fallback...", e2);
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: videoConstraints,
-          audio: false,
-          selfBrowserSurface: "exclude"
-        } as any);
+      } catch (e) {
+        console.warn("Failed screen share with high-fidelity audio, trying standard audio...", e);
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: videoConstraints,
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: false
+            } as any,
+            selfBrowserSurface: "exclude"
+          } as any);
+        } catch (e2) {
+          console.warn("Failed screen share with standard audio, trying video-only fallback...", e2);
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: videoConstraints,
+            audio: false,
+            selfBrowserSurface: "exclude"
+          } as any);
+        }
       }
     }
 
@@ -796,6 +856,10 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
     const screenTrack = stream.getVideoTracks()[0];
     if (screenTrack) {
+      if ("contentHint" in screenTrack) {
+        screenTrack.contentHint = "motion";
+        console.log("[WebRTC] Configured screen video track contentHint to 'motion' for smooth playback.");
+      }
       screenTrack.addEventListener("ended", () => {
         console.log("[WebRTC] Screen track ended natively.");
         stopScreenShare();

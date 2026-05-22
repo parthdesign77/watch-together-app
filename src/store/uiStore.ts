@@ -20,6 +20,7 @@ interface UiStore {
   masterVolume: number;
   participantVolumes: Record<string, number>;
   pushToTalkEnabled: boolean;
+  deafened: boolean;
   setTheme: (theme: "dark" | "light") => void;
   toggleSidebar: () => void;
   openModal: (modal: string) => void;
@@ -32,6 +33,7 @@ interface UiStore {
   setMasterVolume: (volume: number) => void;
   setParticipantVolume: (uid: string, volume: number) => void;
   setPushToTalkEnabled: (enabled: boolean) => void;
+  setDeafened: (deafened: boolean) => void;
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -45,6 +47,7 @@ export const useUiStore = create<UiStore>((set) => ({
   masterVolume: Number(localStorage.getItem("masterVolume") ?? "1"),
   participantVolumes: JSON.parse(localStorage.getItem("participantVolumes") || "{}"),
   pushToTalkEnabled: localStorage.getItem("pushToTalkEnabled") === "true",
+  deafened: localStorage.getItem("deafened") === "true",
   setTheme: (theme) => {
     document.documentElement.classList.toggle("light", theme === "light");
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -85,5 +88,9 @@ export const useUiStore = create<UiStore>((set) => ({
   setPushToTalkEnabled: (enabled) => {
     localStorage.setItem("pushToTalkEnabled", String(enabled));
     set({ pushToTalkEnabled: enabled });
+  },
+  setDeafened: (deafened) => {
+    localStorage.setItem("deafened", String(deafened));
+    set({ deafened });
   }
 }));

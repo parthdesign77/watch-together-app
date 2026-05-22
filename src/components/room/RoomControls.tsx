@@ -18,10 +18,13 @@ import {
   Copy,
   Check,
   Tv,
-  Hand
+  Hand,
+  Headphones,
+  VolumeX
 } from "lucide-react";
 import { updateRoomState } from "../../hooks/useRooms";
 import { useUISound } from "../../hooks/useUISound";
+import { useUiStore } from "../../store/uiStore";
 import type { WatchRoom } from "../../types";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -81,6 +84,9 @@ export function RoomControls({
   const [copied, setCopied] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  const deafened = useUiStore((state) => state.deafened);
+  const setDeafened = useUiStore((state) => state.setDeafened);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -249,6 +255,27 @@ export function RoomControls({
               title={muted ? "Unmute Mic" : "Mute Mic"}
             >
               {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </Button>
+          </motion.div>
+
+          {/* Deafen Button */}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              id="deafenBtn"
+              style={{ width: "48px", height: "48px", minWidth: "48px" }}
+              variant={deafened ? "danger" : "secondary"}
+              className={`rounded-[14px] flex items-center justify-center p-0 border border-white/5 transition-all duration-300 ${
+                deafened ? "bg-[#ff3d47]/20 border-[#ff3d47]/30 text-[#ff3d47]" : "bg-neutral-800 hover:bg-neutral-700 text-white"
+              }`}
+              onClick={() => {
+                const nextState = !deafened;
+                play(nextState ? "deafen" : "undeafen");
+                setDeafened(nextState);
+              }}
+              title={deafened ? "Deafened – You can't hear others" : "Deafen Audio"}
+              aria-label={deafened ? "Undeafen Audio – Receive incoming audio" : "Deafen Audio – Mute all incoming audio"}
+            >
+              {deafened ? <VolumeX className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
             </Button>
           </motion.div>
 

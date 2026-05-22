@@ -6,6 +6,7 @@ export function StreamAudio({ stream, uid }: { stream: MediaStream | null; uid?:
   const audioOutputDeviceId = useUiStore((state) => state.audioOutputDeviceId);
   const masterVolume = useUiStore((state) => state.masterVolume);
   const participantVolume = useUiStore((state) => (uid ? state.participantVolumes[uid] : undefined) ?? 1);
+  const deafened = useUiStore((state) => state.deafened);
 
   useEffect(() => {
     const audioElement = ref.current;
@@ -58,9 +59,9 @@ export function StreamAudio({ stream, uid }: { stream: MediaStream | null; uid?:
   // Handle master volume and individual participant volumes dynamically
   useEffect(() => {
     if (ref.current) {
-      ref.current.volume = masterVolume * participantVolume;
+      ref.current.volume = deafened ? 0 : masterVolume * participantVolume;
     }
-  }, [masterVolume, participantVolume]);
+  }, [masterVolume, participantVolume, deafened]);
 
   // Handle custom audio output device selection (Speakers, Headphones)
   useEffect(() => {

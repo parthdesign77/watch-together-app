@@ -44,14 +44,34 @@ function mapAnime(anime: any): ContentItem {
   };
 }
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes fresh timer
+
+const memoryCache = {
+  movieRows: null as CacheEntry<any> | null,
+  animeRows: null as CacheEntry<any> | null,
+  search: new Map<string, CacheEntry<ContentItem[]>>()
+};
+
 export async function getMovieRows() {
+  const now = Date.now();
+  if (memoryCache.movieRows && now - memoryCache.movieRows.timestamp < CACHE_TTL) {
+    return memoryCache.movieRows.data;
+  }
+
   if (!TMDB_API_KEY) {
-    return {
+    const data = {
       trending: movieSeeds,
       popular: [...movieSeeds].reverse(),
       topRated: movieSeeds.slice(1),
       upcoming: movieSeeds.slice(0, 4)
     };
+    memoryCache.movieRows = { data, timestamp: now };
+    return data;
   }
 
   const client = axios.create({
@@ -66,15 +86,23 @@ export async function getMovieRows() {
     client.get("/movie/upcoming")
   ]);
 
-  return {
+  const data = {
     trending: trending.data.results.map(mapMovie),
     popular: popular.data.results.map(mapMovie),
     topRated: topRated.data.results.map(mapMovie),
     upcoming: upcoming.data.results.map(mapMovie)
   };
+
+  memoryCache.movieRows = { data, timestamp: now };
+  return data;
 }
 
 export async function getAnimeRows() {
+  const now = Date.now();
+  if (memoryCache.animeRows && now - memoryCache.animeRows.timestamp < CACHE_TTL) {
+    return memoryCache.animeRows.data;
+  }
+
   try {
     const client = axios.create({ baseURL: JIKAN_BASE_URL });
     const [top, seasonal, airing] = await Promise.all([
@@ -83,23 +111,35 @@ export async function getAnimeRows() {
       client.get("/top/anime", { params: { filter: "airing", limit: 12 } })
     ]);
 
-    return {
+    const data = {
       top: top.data.data.map(mapAnime),
       seasonal: seasonal.data.data.map(mapAnime),
       airing: airing.data.data.map(mapAnime)
     };
+
+    memoryCache.animeRows = { data, timestamp: now };
+    return data;
   } catch {
-    return {
+    const data = {
       top: animeSeeds,
       seasonal: [...animeSeeds].reverse(),
       airing: animeSeeds.slice(0, 4)
     };
+    // Cache the fallback with a 1 minute window to allow fast recovery if network heals
+    memoryCache.animeRows = { data, timestamp: now - (CACHE_TTL - 60000) };
+    return data;
   }
 }
 
 export async function searchContent(query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [];
+
+  const now = Date.now();
+  const cached = memoryCache.search.get(normalized);
+  if (cached && now - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
 
   const local = [...movieSeeds, ...animeSeeds].filter((item) =>
     [item.title, item.overview, item.genres.join(" ")].join(" ").toLowerCase().includes(normalized)
@@ -108,10 +148,14 @@ export async function searchContent(query: string) {
   const remote: ContentItem[] = [];
 
   if (TMDB_API_KEY) {
-    const movies = await axios.get(`${TMDB_BASE_URL}/search/movie`, {
-      params: { api_key: TMDB_API_KEY, query }
-    });
-    remote.push(...movies.data.results.slice(0, 8).map(mapMovie));
+    try {
+      const movies = await axios.get(`${TMDB_BASE_URL}/search/movie`, {
+        params: { api_key: TMDB_API_KEY, query }
+      });
+      remote.push(...movies.data.results.slice(0, 8).map(mapMovie));
+    } catch (e) {
+      console.warn("TMDB search failed:", e);
+    }
   }
 
   try {
@@ -121,5 +165,8 @@ export async function searchContent(query: string) {
     // Local results keep search usable if the public anime API rate limits.
   }
 
-  return [...remote, ...local].filter((item, index, items) => items.findIndex((match) => match.id === item.id) === index);
+  const merged = [...remote, ...local].filter((item, index, items) => items.findIndex((match) => match.id === item.id) === index);
+  
+  memoryCache.search.set(normalized, { data: merged, timestamp: now });
+  return merged;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv, Users, Sliders, Crown, Mic, Volume2, Copy, Check, Lock, Film, Share2, VideoOff } from "lucide-react";
+import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv, Users, Sliders, Crown, Mic, Volume2, Copy, Check, Lock, Film, Share2, VideoOff, Headphones } from "lucide-react";
 import { Navigate, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CameraFeed, CameraStage } from "../components/room/CameraStage";
@@ -279,12 +279,14 @@ export function WatchRoomPage() {
   const noiseSuppressionEnabled = useUiStore((state) => state.noiseSuppressionEnabled);
   const masterVolume = useUiStore((state) => state.masterVolume);
   const participantVolumes = useUiStore((state) => state.participantVolumes);
+  const deafened = useUiStore((state) => state.deafened);
   
   const setAudioInputDeviceId = useUiStore((state) => state.setAudioInputDeviceId);
   const setAudioOutputDeviceId = useUiStore((state) => state.setAudioOutputDeviceId);
   const setNoiseSuppressionEnabled = useUiStore((state) => state.setNoiseSuppressionEnabled);
   const setMasterVolume = useUiStore((state) => state.setMasterVolume);
   const setParticipantVolume = useUiStore((state) => state.setParticipantVolume);
+  const setDeafened = useUiStore((state) => state.setDeafened);
 
   const microphones = devices.filter((d) => d.kind === "audioinput");
   const speakers = devices.filter((d) => d.kind === "audiooutput");
@@ -1445,6 +1447,60 @@ export function WatchRoomPage() {
               </div>
               
               <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-6 scrollbar-none">
+                {/* Mobile Screenshare Section */}
+                <section className="space-y-2.5">
+                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest flex items-center gap-1.5">
+                    <MonitorUp className="h-3.5 w-3.5 text-[#ff3d47]" />
+                    <span>Screen Sharing</span>
+                  </h3>
+                  
+                  <div className="p-4 rounded-2xl border border-white/5 bg-white/5 space-y-3 relative overflow-hidden backdrop-blur-md">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="space-y-1 flex-1">
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          {room.isScreenSharing && room.screenShareHost === profile?.uid ? (
+                            <>
+                              <span className="flex h-2 w-2 relative">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                              </span>
+                              <span>You are Sharing Screen</span>
+                            </>
+                          ) : room.isScreenSharing ? (
+                            <span>Someone is Sharing Screen</span>
+                          ) : (
+                            <span>Share Mobile Screen</span>
+                          )}
+                        </h4>
+                        <p className="text-[11px] text-neutral-400 leading-relaxed">
+                          {room.isScreenSharing && room.screenShareHost === profile?.uid 
+                            ? "Your high-fidelity mobile stream is active and optimized for low-latency playback with butter-smooth frames." 
+                            : "Broadcast your device screen. iOS Safari and Android Chrome sandbox system audio; microphone is mixed automatically so friends can hear you!"}
+                        </p>
+                      </div>
+                      
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setMobileOptionsOpen(false);
+                          if (room.isScreenSharing && room.screenShareHost === profile?.uid) {
+                            await stopScreen();
+                          } else {
+                            await shareScreen("entire-screen");
+                          }
+                        }}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 flex-shrink-0 ${
+                          room.isScreenSharing && room.screenShareHost === profile?.uid
+                            ? "bg-[#ff3d47] text-white shadow-[0_0_12px_rgba(255,61,71,0.35)] active:scale-95 border border-[#ff3d47]"
+                            : "bg-white text-black active:scale-95 hover:bg-neutral-200 border border-white"
+                        }`}
+                      >
+                        {room.isScreenSharing && room.screenShareHost === profile?.uid ? "Stop Share" : "Start Share"}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
                 {/* Host & Actions Panel */}
                 <section className="space-y-2.5">
                   <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Quick Actions</h3>
@@ -1568,6 +1624,37 @@ export function WatchRoomPage() {
                       <Volume2 className="h-4 w-4" />
                     </div>
                   </div>
+                </section>
+
+                {/* Deafen Mode Toggle */}
+                <section className="bg-white/5 border border-white/5 rounded-xl p-4 flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Headphones className="h-4 w-4 text-[#ff3d47]" />
+                      Deafen Mode
+                    </h4>
+                    <p className="text-[11px] text-neutral-400 max-w-xs leading-relaxed">
+                      Mutes all incoming participant voice chats and system sound effects.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !deafened;
+                      play(next ? "deafen" : "undeafen");
+                      setDeafened(next);
+                    }}
+                    className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                    style={{ backgroundColor: deafened ? "#ff3d47" : "#262626" }}
+                    role="switch"
+                    aria-checked={deafened}
+                    aria-label="Deafen Mode Toggle"
+                  >
+                    <span
+                      className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                      style={{ transform: deafened ? "translateX(20px)" : "translateX(0px)" }}
+                    />
+                  </button>
                 </section>
 
                 {/* Noise Suppression Toggle */}

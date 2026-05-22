@@ -18,7 +18,9 @@ export type UISoundType =
   | "camera-on"
   | "camera-off"
   | "screenshare-start"
-  | "screenshare-stop";
+  | "screenshare-stop"
+  | "deafen"
+  | "undeafen";
 
 // Global, module-level singleton AudioContext to prevent browser limit crashes and optimize responsiveness
 let globalAudioCtx: AudioContext | null = null;
@@ -38,6 +40,12 @@ export function useUISound() {
 
   const play = useCallback((type: UISoundType) => {
     try {
+      // Mute system sounds if deafened, EXCEPT for the toggle actions
+      const isDeafened = localStorage.getItem("deafened") === "true";
+      if (isDeafened && type !== "deafen" && type !== "undeafen") {
+        return;
+      }
+
       const nowTime = Date.now();
       if (nowTime - lastSoundPlayedTime < 50) {
         return;
@@ -420,6 +428,86 @@ export function useUISound() {
           gain.connect(ctx.destination);
           osc.start(now);
           osc.stop(now + 0.25);
+          break;
+        }
+        case "deafen": {
+          // Premium, rich descending chime (D5 -> B4 -> G4) with warm harmonics
+          const playChimeNote = (delay: number, freq: number, dur: number) => {
+            const oscSine = ctx.createOscillator();
+            const oscTri = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+
+            oscSine.type = "sine";
+            oscSine.frequency.setValueAtTime(freq, now + delay);
+
+            oscTri.type = "triangle";
+            // Soft harmonic at double frequency (one octave up) for acoustic richness
+            oscTri.frequency.setValueAtTime(freq * 2, now + delay);
+
+            // Clean click-free envelope: 10ms attack, smooth exponential decay
+            gain.gain.setValueAtTime(0.0001, now + delay);
+            gain.gain.linearRampToValueAtTime(0.12, now + delay + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur);
+
+            // Shape the tone to make it sound extra soft and rounded
+            filter.type = "lowpass";
+            filter.frequency.setValueAtTime(freq * 1.6, now + delay);
+
+            oscSine.connect(gain);
+            oscTri.connect(gain);
+            gain.connect(filter);
+            filter.connect(ctx.destination);
+
+            oscSine.start(now + delay);
+            oscTri.start(now + delay);
+            oscSine.stop(now + delay + dur);
+            oscTri.stop(now + delay + dur);
+          };
+
+          playChimeNote(0, 587.33, 0.20); // D5
+          playChimeNote(0.08, 493.88, 0.20); // B4
+          playChimeNote(0.16, 392.00, 0.35); // G4
+          break;
+        }
+        case "undeafen": {
+          // Premium, rich ascending chime (G4 -> B4 -> D5) with warm harmonics
+          const playChimeNote = (delay: number, freq: number, dur: number) => {
+            const oscSine = ctx.createOscillator();
+            const oscTri = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+
+            oscSine.type = "sine";
+            oscSine.frequency.setValueAtTime(freq, now + delay);
+
+            oscTri.type = "triangle";
+            // Soft harmonic at double frequency (one octave up) for acoustic richness
+            oscTri.frequency.setValueAtTime(freq * 2, now + delay);
+
+            // Clean click-free envelope: 10ms attack, smooth exponential decay
+            gain.gain.setValueAtTime(0.0001, now + delay);
+            gain.gain.linearRampToValueAtTime(0.12, now + delay + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur);
+
+            // Shape the tone to make it sound extra soft and rounded
+            filter.type = "lowpass";
+            filter.frequency.setValueAtTime(freq * 1.6, now + delay);
+
+            oscSine.connect(gain);
+            oscTri.connect(gain);
+            gain.connect(filter);
+            filter.connect(ctx.destination);
+
+            oscSine.start(now + delay);
+            oscTri.start(now + delay);
+            oscSine.stop(now + delay + dur);
+            oscTri.stop(now + delay + dur);
+          };
+
+          playChimeNote(0, 392.00, 0.20); // G4
+          playChimeNote(0.08, 493.88, 0.20); // B4
+          playChimeNote(0.16, 587.33, 0.35); // D5
           break;
         }
       }

@@ -1,4 +1,4 @@
-import { FormEvent, useRef, useState, useEffect, useMemo } from "react";
+import { FormEvent, useRef, useState, useEffect, useMemo, memo } from "react";
 import { AtSign, Pin, Send, Smile } from "lucide-react";
 import { addMessageReaction, sendRoomMessage, updateRoomState } from "../../hooks/useRooms";
 import { REACTIONS } from "../../lib/constants";
@@ -37,7 +37,7 @@ function isImageUrl(url: string) {
   );
 }
 
-export function ChatPanel({ roomId, profile, messages, participants, isMobileView, onClose }: ChatPanelProps) {
+export const ChatPanel = memo(function ChatPanel({ roomId, profile, messages, participants, isMobileView, onClose }: ChatPanelProps) {
   const [text, setText] = useState("");
   const [showStickers, setShowStickers] = useState(false);
   const [isLocalTyping, setIsLocalTyping] = useState(false);
@@ -420,4 +420,4 @@ export function ChatPanel({ roomId, profile, messages, participants, isMobileVie
       </form>
     </aside>
   );
-}
+});

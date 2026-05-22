@@ -10,9 +10,12 @@ import {
   Users,
   LogOut,
   Smile,
-  Sliders
+  Sliders,
+  Headphones,
+  VolumeX
 } from "lucide-react";
 import { useUISound } from "../../hooks/useUISound";
+import { useUiStore } from "../../store/uiStore";
 import type { WatchRoom } from "../../types";
 
 interface MobileControlsProps {
@@ -61,6 +64,9 @@ export function MobileControls({
   const { play } = useUISound();
   const [showEmojis, setShowEmojis] = useState(false);
   const emojiRef = useRef<HTMLDivElement>(null);
+
+  const deafened = useUiStore((state) => state.deafened);
+  const setDeafened = useUiStore((state) => state.setDeafened);
 
   const emojis = ["👍", "❤️", "😂", "😮", "🔥"];
 
@@ -141,8 +147,8 @@ export function MobileControls({
         </div>
       </div>
 
-      {/* Main Bottom Control Grid (5 equally-spaced, beautifully-sized buttons) */}
-      <div className="grid grid-cols-5 gap-2 max-w-md mx-auto items-center justify-items-center py-1">
+      {/* Main Bottom Control Grid (6 equally-spaced, beautifully-sized buttons) */}
+      <div className="grid grid-cols-6 gap-1.5 xs:gap-2 max-w-md mx-auto items-center justify-items-center py-1 px-1 xs:px-2 sm:px-4">
         
         {/* 1. Mic Control */}
         <button
@@ -161,21 +167,54 @@ export function MobileControls({
           {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </button>
 
-        {/* 2. Camera Control */}
+        {/* 2. Deafen Control */}
         <button
+          id="deafenBtn"
           onClick={() => {
-            play(hasCameraStream ? "camera-off" : "camera-on");
-            onToggleCamera();
+            const nextState = !deafened;
+            play(nextState ? "deafen" : "undeafen");
+            setDeafened(nextState);
           }}
-          className={`h-12 w-12 rounded-full flex items-center justify-center border transition-all active:scale-90 cursor-pointer ${
-            hasCameraStream
-              ? "bg-[#ff3d47] border-[#ff3d47] text-white shadow-[0_0_12px_rgba(255,61,71,0.3)] animate-glow"
+          className={`h-12 w-12 rounded-full flex flex-col items-center justify-center border transition-all duration-300 active:scale-90 cursor-pointer ${
+            deafened
+              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)]"
               : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10"
           }`}
-          aria-label={hasCameraStream ? "Stop Camera" : "Start Camera"}
+          aria-label={deafened ? "Undeafen Audio – Receive incoming audio" : "Deafen Audio – Mute all incoming audio"}
+          title={deafened ? "Deafened – You can't hear others" : "Deafen Audio"}
         >
-          {hasCameraStream ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+          {deafened ? <VolumeX className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
         </button>
+
+        {/* 2. Camera or Screen Share Control */}
+        {hasScreenStream ? (
+          <button
+            onClick={() => {
+              play("screenshare-stop");
+              onStopScreen();
+            }}
+            className="h-12 w-12 rounded-full flex items-center justify-center border bg-[#ff3d47] border-[#ff3d47] text-white shadow-[0_0_12px_rgba(255,61,71,0.4)] animate-pulse cursor-pointer"
+            aria-label="Stop Screen Share"
+            title="Stop Screen Share"
+          >
+            <MonitorUp className="h-5 w-5 text-white" />
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              play(hasCameraStream ? "camera-off" : "camera-on");
+              onToggleCamera();
+            }}
+            className={`h-12 w-12 rounded-full flex items-center justify-center border transition-all active:scale-90 cursor-pointer ${
+              hasCameraStream
+                ? "bg-[#ff3d47] border-[#ff3d47] text-white shadow-[0_0_12px_rgba(255,61,71,0.3)] animate-glow"
+                : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10"
+            }`}
+            aria-label={hasCameraStream ? "Stop Camera" : "Start Camera"}
+          >
+            {hasCameraStream ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+          </button>
+        )}
 
         {/* 3. Chat Control */}
         <button
