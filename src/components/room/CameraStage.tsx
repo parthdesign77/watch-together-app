@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Maximize2, Video, Lock, Sparkles, Crown, Mic, MicOff } from "lucide-react";
+import { Maximize2, Video, Lock, Sparkles, Crown, Mic, MicOff, HeadphoneOff } from "lucide-react";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { StreamVideo } from "./StreamVideo";
@@ -74,7 +74,9 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                 {/* Name Tag and mic overlay */}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 px-3 flex items-center justify-between gap-1.5 z-10">
                   <p className={`truncate ${textClass} font-black text-white/95 max-w-[75%]`}>{p.name}</p>
-                  {p.isMuted ? (
+                  {p.isDeafened ? (
+                    <HeadphoneOff className={`${iconSize} text-red-500 flex-shrink-0`} />
+                  ) : p.isMuted ? (
                     <MicOff className={`${iconSize} text-red-500 flex-shrink-0`} />
                   ) : (
                     <Mic className={`${iconSize} flex-shrink-0 ${p.isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />
@@ -174,7 +176,9 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                   <p className="truncate text-[8px] sm:text-[10px] font-black text-white max-w-[70%]">
                     {p?.name || (feed?.name || "").split(" ")[0] || "Guest"}
                   </p>
-                  {p?.isMuted ? (
+                  {p?.isDeafened ? (
+                    <HeadphoneOff className="h-2.5 w-2.5 text-red-500 flex-shrink-0" />
+                  ) : p?.isMuted ? (
                     <MicOff className="h-2.5 w-2.5 text-red-500 flex-shrink-0" />
                   ) : (
                     <Mic className={`h-2.5 w-2.5 flex-shrink-0 ${isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />
@@ -251,7 +255,9 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                 {/* Name Tag and mic overlay */}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 px-2.5 flex items-center justify-between gap-1 z-10">
                   <p className={`truncate ${floatTextClass} font-black text-white/95 max-w-[75%]`}>{p.name}</p>
-                  {p.isMuted ? (
+                  {p.isDeafened ? (
+                    <HeadphoneOff className={`${floatIconSize} text-red-500 flex-shrink-0`} />
+                  ) : p.isMuted ? (
                     <MicOff className={`${floatIconSize} text-red-500 flex-shrink-0`} />
                   ) : (
                     <Mic className={`${floatIconSize} flex-shrink-0 ${p.isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />

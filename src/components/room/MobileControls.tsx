@@ -12,7 +12,7 @@ import {
   Smile,
   Sliders,
   Headphones,
-  VolumeX
+  HeadphoneOff
 } from "lucide-react";
 import { useUISound } from "../../hooks/useUISound";
 import { useUiStore } from "../../store/uiStore";
@@ -184,7 +184,7 @@ export function MobileControls({
           aria-label={deafened ? "Undeafen Audio – Receive incoming audio" : "Deafen Audio – Mute all incoming audio"}
           title={deafened ? "Deafened – You can't hear others" : "Deafen Audio"}
         >
-          {deafened ? <VolumeX className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
+          {deafened ? <HeadphoneOff className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
         </button>
 
         {/* 5. Camera or Screen Share Control */}

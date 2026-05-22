@@ -35,6 +35,7 @@ export interface RemoteStream {
 export function useWebRTC(roomId: string | undefined, uid: string | undefined, participants: Participant[]) {
   const audioInputDeviceId = useUiStore((state) => state.audioInputDeviceId);
   const noiseSuppressionEnabled = useUiStore((state) => state.noiseSuppressionEnabled);
+  const deafened = useUiStore((state) => state.deafened);
 
   const [voiceStream, setVoiceStream] = useState<MediaStream | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -1037,9 +1038,10 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     void updateDoc(doc(db, "rooms", roomId), {
       [`participants.${uid}.isMuted`]: muted,
       [`participants.${uid}.isSpeaking`]: speaking,
+      [`participants.${uid}.isDeafened`]: deafened,
       [`participants.${uid}.voiceStreamId`]: voiceStream ? voiceStream.id : null
     }).catch(() => undefined);
-  }, [muted, roomId, speaking, uid, voiceStream]);
+  }, [muted, roomId, speaking, uid, voiceStream, deafened]);
 
   // Synchronize peer connections and remote streams with current participants
   const participantsKey = participants

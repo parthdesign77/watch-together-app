@@ -1,4 +1,4 @@
-import { Crown, MicOff, MonitorUp } from "lucide-react";
+import { Crown, MicOff, MonitorUp, HeadphoneOff } from "lucide-react";
 import type { Participant, UserProfile } from "../../types";
 
 interface AvatarProps {
@@ -33,7 +33,9 @@ export function Avatar({ user, size = "md", showStatus = false }: AvatarProps) {
       {showStatus && participant?.isHost ? (
         <Crown className="absolute -right-1 -top-1 h-4 w-4 rounded bg-movie p-0.5 text-white" aria-label="Host" />
       ) : null}
-      {showStatus && participant?.isMuted ? (
+      {showStatus && participant?.isDeafened ? (
+        <HeadphoneOff className="absolute -bottom-1 -right-1 h-4 w-4 rounded bg-danger p-0.5 text-white" aria-label="Deafened" />
+      ) : showStatus && participant?.isMuted ? (
         <MicOff className="absolute -bottom-1 -right-1 h-4 w-4 rounded bg-danger p-0.5 text-white" aria-label="Muted" />
       ) : null}
       {showStatus && participant?.isScreenSharing ? (

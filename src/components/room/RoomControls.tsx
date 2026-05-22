@@ -20,7 +20,7 @@ import {
   Tv,
   Hand,
   Headphones,
-  VolumeX
+  HeadphoneOff
 } from "lucide-react";
 import { updateRoomState } from "../../hooks/useRooms";
 import { useUISound } from "../../hooks/useUISound";
@@ -276,7 +276,7 @@ export function RoomControls({
               title={deafened ? "Undeafen Audio" : "Deafen Audio"}
               aria-label={deafened ? "Undeafen Audio – Receive incoming audio" : "Deafen Audio – Mute all incoming audio"}
             >
-              {deafened ? <VolumeX className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
+              {deafened ? <HeadphoneOff className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
             </Button>
           </motion.div>
 

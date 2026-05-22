@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Maximize2, Minimize2, Pause, PictureInPicture2, Play, RefreshCw, SkipBack, Volume2, Video, Mic, MicOff } from "lucide-react";
+import { Maximize2, Minimize2, Pause, PictureInPicture2, Play, RefreshCw, SkipBack, Volume2, Video, Mic, MicOff, HeadphoneOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updatePlayback } from "../../hooks/useRooms";
 import type { WatchRoom, Participant } from "../../types";
@@ -356,7 +356,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                         </span>
                       )}
                     </span>
-                    {p.isMuted ? (
+                    {p.isDeafened ? (
+                      <HeadphoneOff className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-red-500 flex-shrink-0" />
+                    ) : p.isMuted ? (
                       <MicOff className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-red-500 flex-shrink-0" />
                     ) : (
                       <Mic className={`h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0 ${isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv, Users, Sliders, Crown, Mic, Volume2, Copy, Check, Lock, Film, Share2, VideoOff, Headphones } from "lucide-react";
+import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv, Users, Sliders, Crown, Mic, Volume2, Copy, Check, Lock, Film, Share2, VideoOff, Headphones, HeadphoneOff } from "lucide-react";
 import { Navigate, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CameraFeed, CameraStage } from "../components/room/CameraStage";
@@ -1119,11 +1119,15 @@ export function WatchRoomPage() {
                   ) : (
                     (p.name || "Guest").slice(0, 2).toUpperCase()
                   )}
-                  {p.isMuted && (
+                  {p.isDeafened ? (
+                    <div className="absolute -bottom-1 -right-1 bg-red-600 rounded-full p-0.5 border border-black shadow">
+                      <HeadphoneOff className="h-2.5 w-2.5 text-white" />
+                    </div>
+                  ) : p.isMuted ? (
                     <div className="absolute -bottom-1 -right-1 bg-red-600 rounded-full p-0.5 border border-black shadow">
                       <MicOff className="h-2.5 w-2.5 text-white" />
                     </div>
-                  )}
+                  ) : null}
                 </button>
               ))}
             </div>

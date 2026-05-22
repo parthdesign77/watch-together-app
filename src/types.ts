@@ -30,6 +30,7 @@ export interface Participant {
   joinedAt: number;
   isHost?: boolean;
   isMuted?: boolean;
+  isDeafened?: boolean;
   isSpeaking?: boolean;
   isBuffering?: boolean;
   isScreenSharing?: boolean;
