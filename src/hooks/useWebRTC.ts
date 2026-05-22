@@ -603,27 +603,38 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
     let stream: MediaStream;
     try {
+      // Use noise suppression and echo cancellation to prevent screeching/howling feedback loops,
+      // while keeping autoGainControl false to prevent silence from being boosted into an irritating static hiss.
+      // We also exclude self browser tab surface to prevent mirroring and loopbacks.
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: videoConstraints,
         audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
+          echoCancellation: true,
+          noiseSuppression: true,
           autoGainControl: false
-        } as any
-      });
+        } as any,
+        selfBrowserSurface: "exclude",
+        systemAudio: "include"
+      } as any);
     } catch (e) {
       console.warn("Failed screen share with high-fidelity audio, trying standard audio...", e);
       try {
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: videoConstraints,
-          audio: true
-        });
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: false
+          } as any,
+          selfBrowserSurface: "exclude"
+        } as any);
       } catch (e2) {
         console.warn("Failed screen share with standard audio, trying video-only fallback...", e2);
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: videoConstraints,
-          audio: false
-        });
+          audio: false,
+          selfBrowserSurface: "exclude"
+        } as any);
       }
     }
 
