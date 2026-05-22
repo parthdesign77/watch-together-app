@@ -300,7 +300,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.3 }}
-                        className="absolute inset-0 w-full h-full rounded-[36px] overflow-hidden bg-black"
+                        className="absolute inset-0 w-full h-full rounded-[inherit] overflow-hidden bg-black"
                       >
                         <StreamVideo stream={screenFeed} muted={true} className="w-full h-full object-contain animate-fade-in" />
                       </motion.div>
@@ -311,7 +311,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                         animate={{ opacity: 1, scale: 1, rotateY: 0 }}
                         exit={{ opacity: 0, scale: 0.95, rotateY: -90 }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
-                        className="absolute inset-0 w-full h-full rounded-[36px] overflow-hidden"
+                        className="absolute inset-0 w-full h-full rounded-[inherit] overflow-hidden"
                       >
                         <StreamVideo stream={feed.stream} muted={feed.muted} className="w-full h-full object-cover" />
                       </motion.div>
