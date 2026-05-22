@@ -106,7 +106,7 @@ export function RoomControls({
   const emojis = ["👍", "❤️", "😂", "😮", "🔥"];
 
   return (
-    <section className="glass relative rounded-[20px] p-3.5 sm:p-5 border border-white/5 bg-[#111111]/80 backdrop-blur-md shadow-glow-sm">
+    <section className="hidden lg:block glass relative rounded-[20px] p-3.5 sm:p-5 border border-white/5 bg-[#111111]/80 backdrop-blur-md shadow-glow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         
         {/* Left Side: Stacked Room & Movie Info */}

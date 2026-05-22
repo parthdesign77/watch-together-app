@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv, Users } from "lucide-react";
+import { Loader2, MessageSquare, MonitorUp, Radio, ShieldAlert, MicOff, Tv, Users, Sliders, Crown, Mic, Volume2, Copy, Check, Lock, Film, Share2, VideoOff } from "lucide-react";
 import { Navigate, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { CameraFeed, CameraStage } from "../components/room/CameraStage";
@@ -7,6 +7,7 @@ import { ChatPanel } from "../components/room/ChatPanel";
 import { InviteModal } from "../components/room/InviteModal";
 import { ParticipantsPanel } from "../components/room/ParticipantsPanel";
 import { RoomControls } from "../components/room/RoomControls";
+import { MobileControls } from "../components/room/MobileControls";
 import { StreamAudio } from "../components/room/StreamAudio";
 import { StreamVideo } from "../components/room/StreamVideo";
 import { VideoStage } from "../components/room/VideoStage";
@@ -106,6 +107,41 @@ export function WatchRoomPage() {
   const [deviceSettingsOpen, setDeviceSettingsOpen] = useState(false);
   
   const [joined, setJoined] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  useEffect(() => {
+    if (!mobileOptionsOpen) return;
+    navigator.mediaDevices.enumerateDevices().then((list) => {
+      setDevices(list);
+    }).catch(err => console.warn(err));
+  }, [mobileOptionsOpen]);
+
+  const audioInputDeviceId = useUiStore((state) => state.audioInputDeviceId);
+  const audioOutputDeviceId = useUiStore((state) => state.audioOutputDeviceId);
+  const noiseSuppressionEnabled = useUiStore((state) => state.noiseSuppressionEnabled);
+  const masterVolume = useUiStore((state) => state.masterVolume);
+  const participantVolumes = useUiStore((state) => state.participantVolumes);
+  
+  const setAudioInputDeviceId = useUiStore((state) => state.setAudioInputDeviceId);
+  const setAudioOutputDeviceId = useUiStore((state) => state.setAudioOutputDeviceId);
+  const setNoiseSuppressionEnabled = useUiStore((state) => state.setNoiseSuppressionEnabled);
+  const setMasterVolume = useUiStore((state) => state.setMasterVolume);
+  const setParticipantVolume = useUiStore((state) => state.setParticipantVolume);
+
+  const microphones = devices.filter((d) => d.kind === "audioinput");
+  const speakers = devices.filter((d) => d.kind === "audiooutput");
   const [cinemaMode, setCinemaMode] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
@@ -641,7 +677,7 @@ export function WatchRoomPage() {
   return (
     <div className={`bg-[#090909] text-white p-3 sm:p-5 flex flex-col gap-3 sm:gap-5 overflow-x-hidden relative ${
       cinemaMode ? "h-screen max-h-screen overflow-hidden" : "min-h-screen xl:h-screen xl:max-h-screen xl:overflow-hidden"
-    }`}>
+    } ${isMobile ? "pb-24" : ""}`}>
       
       {/* Floating Exit Cinema Mode Button (Always visible in Cinema Mode) */}
       <AnimatePresence>
@@ -837,9 +873,9 @@ export function WatchRoomPage() {
           )}
         </div>
 
-        {/* Sidebar Panel (Hidden when Cinema Mode is active) */}
-        {!cinemaMode && (
-          <div className="flex flex-col w-full xl:w-[380px] h-full gap-4 flex-shrink-0">
+        {/* Sidebar Panel (Hidden when Cinema Mode is active or on Mobile) */}
+        {!cinemaMode && !isMobile && (
+          <div className="flex flex-col w-full lg:w-[380px] xl:w-[380px] h-full gap-4 flex-shrink-0">
             {/* Glassmorphic Tab Switcher (Visible only on screens < xl) */}
             <div className="flex xl:hidden bg-[#111111]/80 border border-white/5 rounded-2xl p-1 gap-1 shadow-glow-sm">
               <button
@@ -977,6 +1013,249 @@ export function WatchRoomPage() {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Mobile Controls Tray */}
+      {isMobile && (
+        <MobileControls
+          room={room}
+          isHost={isHost}
+          muted={webRTC.muted}
+          hasCameraStream={Boolean(webRTC.cameraStream)}
+          hasScreenStream={Boolean(webRTC.screenStream)}
+          isHandRaised={isHandRaised}
+          unreadCount={unreadCount}
+          onStartVoice={() =>
+            webRTC.startVoice()
+              .then(() => pushToast({ title: "Voice connected", description: "Speaking indicators are now active.", type: "success" }))
+              .catch((error) => pushToast({ title: "Voice unavailable", description: error.message, type: "error" }))
+          }
+          onToggleMute={webRTC.toggleMute}
+          onToggleCamera={toggleCamera}
+          onShareScreen={shareScreen}
+          onStopScreen={stopScreen}
+          onToggleHandRaise={handleToggleHandRaise}
+          onOpenChat={() => setMobileChatOpen(true)}
+          onOpenOptions={() => setMobileOptionsOpen(true)}
+          onLeaveRoom={() => setLeaveModalOpen(true)}
+          onSendReaction={handleSendReaction}
+        />
+      )}
+
+      {/* Mobile Live Chat slide-up panel */}
+      <AnimatePresence>
+        {isMobile && mobileChatOpen && (
+          <ChatPanel
+            roomId={room.id}
+            profile={profile}
+            messages={messages}
+            participants={participants}
+            isMobileView={true}
+            onClose={() => setMobileChatOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Options slide-up sheet */}
+      <AnimatePresence>
+        {isMobile && mobileOptionsOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+            {/* Backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileOptionsOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
+            />
+            
+            {/* Slide up sheet */}
+            <motion.aside
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0.1, bottom: 1 }}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100 || info.velocity.y > 200) {
+                  setMobileOptionsOpen(false);
+                }
+              }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="w-full max-w-md max-h-[85vh] bg-[#0c0c0e]/95 border-t border-white/10 rounded-t-[28px] flex flex-col relative overflow-hidden pointer-events-auto shadow-[0_-15px_40px_rgba(0,0,0,0.8)] pb-safe-bottom"
+            >
+              {/* Drag Handle */}
+              <div className="flex-shrink-0 pt-3 pb-1 cursor-row-resize">
+                <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto" />
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/10 px-5 pb-3 pt-2">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-white">Room Settings</h2>
+                  <p className="text-xs text-neutral-400">Configure your call & theater options</p>
+                </div>
+                <button
+                  onClick={() => setMobileOptionsOpen(false)}
+                  className="text-xs text-neutral-400 hover:text-white px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg transition font-bold"
+                >
+                  Done
+                </button>
+              </div>
+              
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-6 scrollbar-none">
+                {/* Host & Actions Panel */}
+                <section className="space-y-2.5">
+                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Quick Actions</h3>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      onClick={() => {
+                        play("click");
+                        setMobileOptionsOpen(false);
+                        setInviteOpen(true);
+                      }}
+                      className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all text-left"
+                    >
+                      <Share2 className="h-4.5 w-4.5 text-[#ff3d47]" />
+                      <span>Invite Friends</span>
+                    </button>
+
+                    {isHost && (
+                      <button
+                        onClick={() => {
+                          play("click");
+                          setMobileOptionsOpen(false);
+                          setSelectorOpen(true);
+                        }}
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all text-left"
+                      >
+                        <Film className="h-4.5 w-4.5 text-[#ff3d47]" />
+                        <span>Select Movie</span>
+                      </button>
+                    )}
+
+                    {isHost && room.videoUrl && (
+                      <button
+                        onClick={() => {
+                          setMobileOptionsOpen(false);
+                          void handleSwitchToNormalVC();
+                        }}
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-red-400 text-xs font-bold transition-all text-left"
+                      >
+                        <VideoOff className="h-4.5 w-4.5" />
+                        <span>Switch VC Mode</span>
+                      </button>
+                    )}
+
+                    {isHost && (
+                      <button
+                        onClick={() => {
+                          play("click");
+                          setMobileOptionsOpen(false);
+                          handleTriggerReadyCheck();
+                        }}
+                        className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 bg-[#ff3d47]/10 border-[#ff3d47]/20 text-[#ff3d47] text-xs font-bold transition-all text-left"
+                      >
+                        <Check className="h-4.5 w-4.5" />
+                        <span>Ready Check</span>
+                      </button>
+                    )}
+                  </div>
+                </section>
+
+                {/* Video Streaming Quality */}
+                <section className="space-y-2.5">
+                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Streaming Quality</h3>
+                  <button
+                    onClick={() => {
+                      play("click");
+                      setMobileOptionsOpen(false);
+                      setQualityOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between p-3.5 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-white text-sm font-bold transition-all"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Sliders className="h-4.5 w-4.5 text-[#ff3d47]" />
+                      <span>Quality & Audio Tracks</span>
+                    </div>
+                    <span className="text-xs text-neutral-400 bg-white/5 px-2.5 py-1 rounded-md border border-white/5">
+                      {room.quality || "480p"}
+                    </span>
+                  </button>
+                </section>
+
+                {/* Master Volume Slider Control */}
+                <section className="space-y-2.5">
+                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Master Volume</h3>
+                  <div className="p-4 rounded-xl border border-white/5 bg-white/5 space-y-3">
+                    <div className="flex justify-between items-center text-xs text-neutral-400">
+                      <div className="flex items-center gap-2 text-white font-bold">
+                        <Volume2 className="h-4 w-4 text-[#ff3d47]" />
+                        <span>Volume Level</span>
+                      </div>
+                      <span className="font-mono">{Math.round(masterVolume * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={masterVolume}
+                      onChange={(e) => setMasterVolume(Number(e.target.value))}
+                      className="w-full h-1.5 rounded-full bg-neutral-800 accent-[#ff3d47] cursor-pointer"
+                    />
+                  </div>
+                </section>
+
+                {/* Speaker / Output Audio Device Selection */}
+                <section className="space-y-2.5">
+                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Speaker / Audio Output</h3>
+                  <div className="relative">
+                    <select
+                      value={audioOutputDeviceId}
+                      onChange={(e) => setAudioOutputDeviceId(e.target.value)}
+                      className="h-12 w-full appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white outline-none focus:border-[#ff3d47] transition cursor-pointer"
+                    >
+                      <option value="default" className="bg-[#111] text-white">Default Speaker</option>
+                      {speakers.map((device) => (
+                        <option key={device.deviceId} value={device.deviceId} className="bg-[#111] text-white">
+                          {device.label || `Speaker (${device.deviceId.slice(0, 5)})`}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400">
+                      <Volume2 className="h-4 w-4" />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Noise Suppression Toggle */}
+                <section className="bg-white/5 border border-white/5 rounded-xl p-4 flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Sliders className="h-4 w-4 text-[#ff3d47]" />
+                      Noise Suppression
+                    </h4>
+                    <p className="text-[11px] text-neutral-400 max-w-xs leading-relaxed">
+                      Filter background static noises from your microphone feed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNoiseSuppressionEnabled(!noiseSuppressionEnabled)}
+                    className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                    style={{ backgroundColor: noiseSuppressionEnabled ? "#ff3d47" : "#262626" }}
+                  >
+                    <span
+                      className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                      style={{ transform: noiseSuppressionEnabled ? "translateX(20px)" : "translateX(0px)" }}
+                    />
+                  </button>
+                </section>
+              </div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

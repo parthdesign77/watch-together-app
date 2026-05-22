@@ -213,10 +213,10 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                   style={{
                     background: `linear-gradient(to bottom, ${(p.avatarColor || "#ff3d47")}22, #121216)`
                   }}
-                  className={`relative flex flex-col items-center justify-center rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-500 ease-out ${
+                  className={`relative flex flex-col items-center justify-center rounded-[24px] sm:rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-500 ease-out ${
                     (feed || screenFeed)
-                      ? "aspect-video w-[320px] sm:w-[400px] md:w-[480px]"
-                      : "aspect-square w-[200px] sm:w-[260px] md:w-[300px]"
+                      ? "aspect-video w-full max-w-[92%] sm:w-[400px] md:w-[480px]"
+                      : "aspect-square w-[45%] max-w-[180px] sm:w-[260px] md:w-[300px]"
                   } ${
                     isSpeaking 
                       ? "border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.2)] scale-[1.02]" 
