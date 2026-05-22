@@ -368,6 +368,13 @@ export function WatchRoomPage() {
 
   useEffect(() => {
     if (!room || !profile || !joined || webRTC.voiceStream || voicePrompted.current) return;
+
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+    if (isMobileDevice) {
+      console.log("[WatchRoom] Mobile device detected - skipping auto voice prompt until user gesture");
+      return;
+    }
+
     voicePrompted.current = true;
     void webRTC.startVoice().catch(() => {
       // Suppress irritating recurring notifications, display single polite console info log

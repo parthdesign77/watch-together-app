@@ -336,18 +336,30 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     analyserCleanup.current?.();
 
     console.log("[WebRTC] Starting voice capture...");
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
-          echoCancellation: true,
-          noiseSuppression: noiseSuppressionEnabled,
-          autoGainControl: true,
-          latency: 0,
-          channelCount: 1
-        }
-      } as any);
+      if (isMobileDevice) {
+        console.log("[WebRTC] Mobile device detected during capture - using direct robust constraints");
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: false, // Bypassed for native hardware processing
+            autoGainControl: true
+          }
+        });
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
+            echoCancellation: true,
+            noiseSuppression: noiseSuppressionEnabled,
+            autoGainControl: true,
+            latency: 0,
+            channelCount: 1
+          }
+        } as any);
+      }
     } catch (err) {
       console.warn("[WebRTC] getUserMedia with full constraints failed, trying robust mobile fallback...", err);
       try {
@@ -367,8 +379,6 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       }
     }
     voiceStreamRef.current = stream;
-
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
     let processedStream: MediaStream = stream;
     let analyser: AnalyserNode | null = null;
     let audioContext: AudioContext | null = null;
