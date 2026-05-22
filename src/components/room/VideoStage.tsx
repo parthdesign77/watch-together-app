@@ -40,6 +40,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
   const { play } = useUISound();
   const { profile } = useAuth();
   const [volume, setVolume] = useState(0.86);
+  const [screenShareVolume, setScreenShareVolume] = useState(0.86);
   const [drift, setDrift] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [objectFit, setObjectFit] = useState<'contain' | 'cover'>('contain');
@@ -194,9 +195,28 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
 
       {activeScreenStream ? (
         <div className="relative h-full w-full">
-          <StreamVideo stream={activeScreenStream} muted={true} className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`} />
+          <StreamVideo
+            stream={activeScreenStream}
+            muted={Boolean(screenStream)}
+            volume={Boolean(screenStream) ? 0 : screenShareVolume}
+            className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`}
+          />
           {hovered && (
-            <div className="absolute right-5 bottom-5 z-30">
+            <div className="absolute right-5 bottom-5 z-30 flex items-center gap-2.5">
+              {!screenStream && (
+                <label className="flex items-center gap-2 text-sm text-neutral-300 bg-[#090909]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/5 h-10 shadow-lg select-none">
+                  <Volume2 className="h-4 w-4 text-neutral-400" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={screenShareVolume}
+                    onChange={(event) => setScreenShareVolume(Number(event.target.value))}
+                    className="w-24 accent-[#ff3d47] cursor-pointer"
+                  />
+                </label>
+              )}
               <Button
                 variant="secondary"
                 size="icon"

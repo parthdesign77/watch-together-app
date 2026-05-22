@@ -3,10 +3,11 @@ import { useEffect, useRef } from "react";
 interface StreamVideoProps {
   stream: MediaStream | null;
   muted?: boolean;
+  volume?: number;
   className?: string;
 }
 
-export function StreamVideo({ stream, muted = false, className = "" }: StreamVideoProps) {
+export function StreamVideo({ stream, muted = false, volume = 1.0, className = "" }: StreamVideoProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -22,6 +23,12 @@ export function StreamVideo({ stream, muted = false, className = "" }: StreamVid
       }
     }
   }, [stream]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
+    }
+  }, [volume]);
 
   return (
     <video
