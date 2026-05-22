@@ -46,6 +46,8 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
   const [objectFit, setObjectFit] = useState<'contain' | 'cover'>('contain');
   const lastTap = useRef<number>(0);
   const [showZoomIndicator, setShowZoomIndicator] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleDoubleTap = (e: React.MouseEvent | React.TouchEvent) => {
     const target = e.target as HTMLElement;
@@ -68,6 +70,20 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       return () => clearTimeout(timer);
     }
   }, [showZoomIndicator, objectFit]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    if (contextMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [contextMenu]);
   const activeScreenStream = screenStream || remoteScreenStream || null;
   const hasVideo = Boolean(room.videoUrl);
   const hasActiveMedia = Boolean(
@@ -194,7 +210,14 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       
 
       {activeScreenStream ? (
-        <div className="relative h-full w-full">
+        <div
+          className="relative h-full w-full"
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenu({ x: e.clientX, y: e.clientY });
+            play("click");
+          }}
+        >
           <StreamVideo
             stream={activeScreenStream}
             muted={Boolean(screenStream)}
@@ -484,6 +507,105 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
             <span className="text-xs font-black text-white uppercase tracking-wider">
               {objectFit === "cover" ? "Filled Screen (Zoom)" : "Original Aspect"}
             </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Context Menu Popup */}
+      <AnimatePresence>
+        {contextMenu && (
+          <motion.div
+            ref={contextMenuRef}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            style={{
+              top: `${Math.min(contextMenu.y, window.innerHeight - 240)}px`,
+              left: `${Math.min(contextMenu.x, window.innerWidth - 280)}px`,
+            }}
+            className="fixed z-[999] w-[260px] glass rounded-2xl border border-white/10 bg-[#111111]/90 backdrop-blur-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col gap-3.5 select-none"
+          >
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#ff3d47]">
+                Screenshare Config
+              </span>
+              <span className="text-[9px] font-medium text-neutral-400">
+                Right-Click Menu
+              </span>
+            </div>
+
+            {/* Volume Adjustment */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold text-neutral-300">
+                Stream Volume
+              </span>
+              {screenStream ? (
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/5 text-[11px] text-neutral-400">
+                  <MicOff className="h-3.5 w-3.5 text-[#ff3d47]" />
+                  <span>Local Screenshare (Muted)</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-xl px-3 py-2">
+                  <button
+                    onClick={() => {
+                      play("click");
+                      setScreenShareVolume((v) => (v > 0 ? 0 : 0.8));
+                    }}
+                    className="text-neutral-400 hover:text-white transition cursor-pointer"
+                  >
+                    <Volume2 className="h-4 w-4 text-[#ff3d47]" />
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={screenShareVolume}
+                    onChange={(e) => setScreenShareVolume(Number(e.target.value))}
+                    className="w-full h-1 rounded-full bg-neutral-800 accent-[#ff3d47] cursor-pointer"
+                  />
+                  <span className="text-[10px] font-mono text-neutral-300 w-8 text-right">
+                    {Math.round(screenShareVolume * 100)}%
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Aspect Ratio Control */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold text-neutral-300">
+                Aspect Display Mode
+              </span>
+              <div className="grid grid-cols-2 gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
+                <button
+                  onClick={() => {
+                    play("click");
+                    setObjectFit("contain");
+                  }}
+                  className={`py-1.5 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
+                    objectFit === "contain"
+                      ? "bg-[#ff3d47] text-white shadow-md border border-[#ff3d47]"
+                      : "text-neutral-400 hover:text-white bg-transparent border border-transparent"
+                  }`}
+                >
+                  Fit Content
+                </button>
+                <button
+                  onClick={() => {
+                    play("click");
+                    setObjectFit("cover");
+                  }}
+                  className={`py-1.5 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
+                    objectFit === "cover"
+                      ? "bg-[#ff3d47] text-white shadow-md border border-[#ff3d47]"
+                      : "text-neutral-400 hover:text-white bg-transparent border border-transparent"
+                  }`}
+                >
+                  Fill Screen
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -564,7 +564,14 @@ export function WatchRoomPage() {
 
   const currentRoom = room;
   const currentProfile = profile;
-  const remoteAudioStreams = webRTC.remoteStreams.filter((item) => item.stream.getAudioTracks().length > 0);
+  const remoteAudioStreams = webRTC.remoteStreams.filter((item) => {
+    if (item.stream.getAudioTracks().length === 0) return false;
+    const hostParticipant = room?.participants?.[item.uid];
+    if (hostParticipant && hostParticipant.screenStreamId === item.id) {
+      return false; // Exclude screenshare from general background audio playback
+    }
+    return true;
+  });
   const screenShareActive = Boolean(webRTC.screenStream || remoteScreenStream || room.isScreenSharing);
   const cameraOnlyMode = cameraFeeds.length > 0 && !screenShareActive;
 
