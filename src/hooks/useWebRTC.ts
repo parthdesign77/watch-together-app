@@ -45,6 +45,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const peers = useRef<Record<string, RTCPeerConnection>>({});
   const localStreams = useRef<MediaStream[]>([]);
   const voiceStreamRef = useRef<MediaStream | null>(null);
+  const processedVoiceStreamRef = useRef<MediaStream | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const processedSignals = useRef<Set<string>>(new Set());
@@ -322,11 +323,17 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   );
 
   const startVoice = useCallback(async () => {
+    if (processedVoiceStreamRef.current) {
+      processedVoiceStreamRef.current.getTracks().forEach((track) => track.stop());
+      removeLocalStream(processedVoiceStreamRef.current);
+      processedVoiceStreamRef.current = null;
+    }
     if (voiceStreamRef.current) {
       voiceStreamRef.current.getTracks().forEach((track) => track.stop());
       removeLocalStream(voiceStreamRef.current);
-      analyserCleanup.current?.();
+      voiceStreamRef.current = null;
     }
+    analyserCleanup.current?.();
 
     console.log("[WebRTC] Starting voice capture...");
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -340,14 +347,52 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       }
     } as any);
     voiceStreamRef.current = stream;
-    setVoiceStream(stream);
-    addLocalStream(stream);
-    setMuted(false);
 
     const audioContext = new AudioContext();
     const source = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser();
-    source.connect(analyser);
+    
+    let processedStream: MediaStream;
+
+    if (noiseSuppressionEnabled) {
+      console.log("[WebRTC] Applying Krisp AI Noise Cancellation filter graph...");
+      
+      const highpass = audioContext.createBiquadFilter();
+      highpass.type = "highpass";
+      highpass.frequency.value = 150; // Cut low-end hums/AC noise
+
+      const lowpass = audioContext.createBiquadFilter();
+      lowpass.type = "lowpass";
+      lowpass.frequency.value = 4000; // Cut high-frequency hiss
+
+      const compressor = audioContext.createDynamicsCompressor();
+      compressor.threshold.value = -30; // Threshold in dB
+      compressor.knee.value = 10;
+      compressor.ratio.value = 12;
+      compressor.attack.value = 0.003; // Attack in seconds
+      compressor.release.value = 0.15; // Release in seconds
+
+      const destination = audioContext.createMediaStreamDestination();
+
+      // Connect graph: source -> highpass -> lowpass -> compressor -> destination & analyser
+      source.connect(highpass);
+      highpass.connect(lowpass);
+      lowpass.connect(compressor);
+      compressor.connect(destination);
+      compressor.connect(analyser);
+
+      processedStream = destination.stream;
+      processedVoiceStreamRef.current = processedStream;
+    } else {
+      source.connect(analyser);
+      processedStream = stream;
+      processedVoiceStreamRef.current = null;
+    }
+
+    setVoiceStream(processedStream);
+    addLocalStream(processedStream);
+    setMuted(false);
+
     analyser.fftSize = 256;
     const data = new Uint8Array(analyser.frequencyBinCount);
     let raf = 0;
@@ -358,7 +403,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     const tick = () => {
       analyser.getByteFrequencyData(data);
       const volume = data.reduce((sum, value) => sum + value, 0) / data.length;
-      const isTrackMuted = stream.getAudioTracks().some((t) => !t.enabled);
+      
+      // Check track enabled state on the processed stream
+      const isTrackMuted = processedStream.getAudioTracks().some((t) => !t.enabled);
       
       const threshold = 18;
       const isAboveThreshold = volume > threshold && !isTrackMuted;
@@ -378,7 +425,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             currentSpeaking = false;
             setSpeaking(false);
             speakingTimer = null;
-          }, 350); // smooth debounce to prevent rapid flickering
+          }, 350);
         }
       }
       raf = requestAnimationFrame(tick);
@@ -544,13 +591,23 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const toggleMute = useCallback((forceState?: boolean) => {
     setMuted((nextMuted) => {
       const shouldMute = forceState !== undefined ? forceState : !nextMuted;
+      
       const stream = voiceStreamRef.current;
       if (stream) {
         stream.getAudioTracks().forEach((track) => {
           track.enabled = !shouldMute;
-          console.log(`[Audio Mute] Audio track ${track.id} enabled state set to: ${!shouldMute}`);
+          console.log(`[Audio Mute] Raw audio track ${track.id} enabled state set to: ${!shouldMute}`);
         });
       }
+      
+      const processedStream = processedVoiceStreamRef.current;
+      if (processedStream) {
+        processedStream.getAudioTracks().forEach((track) => {
+          track.enabled = !shouldMute;
+          console.log(`[Audio Mute] Processed audio track ${track.id} enabled state set to: ${!shouldMute}`);
+        });
+      }
+      
       return shouldMute;
     });
   }, []);

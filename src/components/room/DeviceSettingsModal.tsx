@@ -210,10 +210,10 @@ export function DeviceSettingsModal({ open, onClose }: DeviceSettingsModalProps)
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
               <Sliders className="h-4 w-4 text-[#ff3d47]" />
-              Noise Suppression
+              Krisp AI Noise Cancellation
             </h4>
             <p className="text-xs text-neutral-400 max-w-sm leading-relaxed">
-              Filters background static hums, fan whirring, and transient room noises from your microphone feed.
+              Uses advanced voice filtering algorithms to eliminate low-end AC hums, fan whirring, and high-frequency noise from your voice feed.
             </p>
           </div>
           <button

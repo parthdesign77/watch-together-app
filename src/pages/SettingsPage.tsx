@@ -3,7 +3,7 @@ import { Button } from "../components/ui/Button";
 import { useUiStore } from "../store/uiStore";
 
 const sections = [
-  { title: "Audio Settings", icon: Mic, body: "Noise suppression, echo cancellation, automatic gain, push-to-talk, and user volume controls." },
+  { title: "Audio Settings", icon: Mic, body: "Krisp AI noise cancellation, echo cancellation, automatic gain, push-to-talk, and user volume controls." },
   { title: "Streaming Settings", icon: MonitorUp, body: "Default quality, bitrate indicator, screen share source switching, and reconnect overlays." },
   { title: "Keyboard Shortcuts", icon: Keyboard, body: "Space to play/pause, M to mute, F for fullscreen, T for theater, and / for search." },
   { title: "Privacy & Security", icon: Shield, body: "Protected rooms, password rooms, session persistence, and authenticated Firestore access." },

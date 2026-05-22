@@ -1305,10 +1305,10 @@ export function WatchRoomPage() {
                   <div className="space-y-0.5">
                     <h4 className="text-sm font-bold text-white flex items-center gap-2">
                       <Sliders className="h-4 w-4 text-[#ff3d47]" />
-                      Noise Suppression
+                      Krisp AI Noise Cancellation
                     </h4>
                     <p className="text-[11px] text-neutral-400 max-w-xs leading-relaxed">
-                      Filter background static noises from your microphone feed.
+                      Uses advanced voice filtering algorithms to eliminate background hums, fan whirring, and transient noises.
                     </p>
                   </div>
                   <button
