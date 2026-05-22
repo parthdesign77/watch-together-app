@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 
 export type UISoundType =
   | "hover"
@@ -9,20 +9,23 @@ export type UISoundType =
   | "leave"
   | "voice"
   | "start"
-  | "ready";
+  | "ready"
+  | "fullscreen-enter"
+  | "fullscreen-exit";
+
+// Global, module-level singleton AudioContext to prevent browser limit crashes and optimize responsiveness
+let globalAudioCtx: AudioContext | null = null;
 
 export function useUISound() {
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
   const getAudioContext = (): AudioContext => {
-    if (!audioCtxRef.current) {
+    if (!globalAudioCtx) {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      audioCtxRef.current = new AudioCtxClass();
+      globalAudioCtx = new AudioCtxClass();
     }
-    if (audioCtxRef.current.state === "suspended") {
-      audioCtxRef.current.resume().catch(() => {});
+    if (globalAudioCtx.state === "suspended") {
+      globalAudioCtx.resume().catch(() => {});
     }
-    return audioCtxRef.current;
+    return globalAudioCtx;
   };
 
   const play = useCallback((type: UISoundType) => {
@@ -197,6 +200,61 @@ export function useUISound() {
           };
           playChime(0, 880); // A5
           playChime(0.07, 1109); // C#6
+          break;
+        }
+        case "fullscreen-enter": {
+          // Futuristic sweep up and space expansion chime
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          osc1.type = "sine";
+          osc1.frequency.setValueAtTime(250, now);
+          osc1.frequency.exponentialRampToValueAtTime(750, now + 0.45);
+
+          osc2.type = "triangle";
+          osc2.frequency.setValueAtTime(150, now);
+          osc2.frequency.exponentialRampToValueAtTime(450, now + 0.45);
+
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(0.06, now + 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 0.45);
+          osc2.stop(now + 0.45);
+          break;
+        }
+        case "fullscreen-exit": {
+          // Decelerating slide down chime
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          osc1.type = "sine";
+          osc1.frequency.setValueAtTime(650, now);
+          osc1.frequency.exponentialRampToValueAtTime(220, now + 0.35);
+
+          osc2.type = "triangle";
+          osc2.frequency.setValueAtTime(350, now);
+          osc2.frequency.exponentialRampToValueAtTime(120, now + 0.35);
+
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 0.35);
+          osc2.stop(now + 0.35);
           break;
         }
       }

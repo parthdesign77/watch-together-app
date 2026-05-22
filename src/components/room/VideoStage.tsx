@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Maximize2, Pause, PictureInPicture2, Play, RefreshCw, SkipBack, Volume2, Video, Mic, MicOff } from "lucide-react";
+import { Maximize2, Minimize2, Pause, PictureInPicture2, Play, RefreshCw, SkipBack, Volume2, Video, Mic, MicOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updatePlayback } from "../../hooks/useRooms";
 import type { WatchRoom, Participant } from "../../types";
@@ -18,6 +18,8 @@ interface VideoStageProps {
   participants?: Participant[];
   onVideoEnded?: () => void;
   cinemaMode?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 
@@ -30,7 +32,7 @@ function youtubeEmbed(url: string) {
   return match ? `https://www.youtube.com/embed/${match[1]}?enablejsapi=1&rel=0` : url;
 }
 
-export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cameraFeeds = [], participants = [], onVideoEnded, cinemaMode = false }: VideoStageProps) {
+export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cameraFeeds = [], participants = [], onVideoEnded, cinemaMode = false, isFullscreen = false, onToggleFullscreen }: VideoStageProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const { play } = useUISound();
@@ -171,7 +173,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                 size="icon"
                 onClick={() => {
                   play("click");
-                  if (stageRef.current) {
+                  if (onToggleFullscreen) {
+                    onToggleFullscreen();
+                  } else if (stageRef.current) {
                     if (document.fullscreenElement) {
                       document.exitFullscreen().catch(() => undefined);
                     } else {
@@ -184,7 +188,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                 className="bg-black/60 hover:bg-[#ff3d47] text-white border border-white/10 rounded-xl h-10 w-10 flex items-center justify-center backdrop-blur-md shadow-lg transition-all"
                 aria-label="Fullscreen screen share"
               >
-                <Maximize2 className="h-4.5 w-4.5" />
+                {isFullscreen ? <Minimize2 className="h-4.5 w-4.5" /> : <Maximize2 className="h-4.5 w-4.5" />}
               </Button>
             </div>
           )}
@@ -392,8 +396,8 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
               >
                 <PictureInPicture2 className="h-4.5 w-4.5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => { play("click"); videoRef.current?.requestFullscreen(); }} aria-label="Fullscreen" className="hover:bg-white/5 text-neutral-300 rounded-xl h-10 w-10 flex items-center justify-center">
-                <Maximize2 className="h-4.5 w-4.5" />
+              <Button variant="ghost" size="icon" onClick={() => { play("click"); if (onToggleFullscreen) onToggleFullscreen(); else videoRef.current?.requestFullscreen(); }} aria-label="Fullscreen" className="hover:bg-white/5 text-neutral-300 rounded-xl h-10 w-10 flex items-center justify-center">
+                {isFullscreen ? <Minimize2 className="h-4.5 w-4.5" /> : <Maximize2 className="h-4.5 w-4.5" />}
               </Button>
             </div>
           </motion.div>

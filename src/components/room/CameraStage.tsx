@@ -19,32 +19,42 @@ interface CameraStageProps {
   screenShareActive: boolean;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   variant?: "floating" | "bottom-bar";
+  isFullscreen?: boolean;
 }
 
-export function CameraStage({ feeds, participants = [], screenShareActive, containerRef, variant = "floating" }: CameraStageProps) {
+export function CameraStage({ feeds, participants = [], screenShareActive, containerRef, variant = "floating", isFullscreen = false }: CameraStageProps) {
   const { profile } = useAuth();
   const spotlight = feeds.length <= 1;
 
   if (variant === "bottom-bar") {
     if (!participants.length) return null;
-    const trayHeight = screenShareActive ? "h-44 sm:h-56" : "h-36 sm:h-48";
-    const avatarSize = screenShareActive ? "h-20 w-20 sm:h-24 sm:w-24" : "h-16 w-16 sm:h-20 sm:w-20";
-    const avatarText = screenShareActive ? "text-lg sm:text-2xl" : "text-base sm:text-xl";
-    const textClass = screenShareActive ? "text-[11px] sm:text-[13px]" : "text-[10px] sm:text-[11px]";
-    const iconSize = screenShareActive ? "h-4 w-4" : "h-3.5 w-3.5";
+    
+    let trayHeight = screenShareActive ? "h-44 sm:h-56" : "h-36 sm:h-48";
+    let avatarSize = screenShareActive ? "h-20 w-20 sm:h-24 sm:w-24" : "h-16 w-16 sm:h-20 sm:w-20";
+    let avatarText = screenShareActive ? "text-lg sm:text-2xl" : "text-base sm:text-xl";
+    let textClass = screenShareActive ? "text-[11px] sm:text-[13px]" : "text-[10px] sm:text-[11px]";
+    let iconSize = screenShareActive ? "h-4 w-4" : "h-3.5 w-3.5";
+
+    if (isFullscreen) {
+      trayHeight = screenShareActive ? "h-32 sm:h-40" : "h-24 sm:h-32";
+      avatarSize = screenShareActive ? "h-14 w-14 sm:h-16 sm:w-16" : "h-11 w-11 sm:h-14 sm:w-14";
+      avatarText = screenShareActive ? "text-sm sm:text-lg" : "text-xs sm:text-base";
+      textClass = screenShareActive ? "text-[9px] sm:text-[11px]" : "text-[8px] sm:text-[9px]";
+      iconSize = screenShareActive ? "h-3 w-3" : "h-2.5 w-2.5";
+    }
 
     return (
-      <section className={`w-full ${trayHeight} flex-shrink-0 overflow-hidden rounded-[20px] border border-white/5 bg-[#111111]/60 backdrop-blur-md shadow-2xl p-2`}>
+      <section className={`w-full ${trayHeight} flex-shrink-0 overflow-hidden rounded-[20px] border border-white/5 bg-[#111111]/60 backdrop-blur-md shadow-2xl p-2 transition-all duration-500 ease-in-out`}>
         <div className="flex h-full w-full items-center gap-3 p-1 overflow-x-auto scrollbar-thin">
           {participants.map((p) => {
             const feed = feeds.find((f) => f.id.startsWith(p.uid));
             return (
-              <div key={p.uid} className={`relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center ${p.isSpeaking ? 'border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
+              <div key={p.uid} className={`relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-all duration-500 ease-in-out ${p.isSpeaking ? 'border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
                 {feed ? (
-                  <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover" />
+                  <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
                   <div 
-                    className={`${avatarSize} rounded-full flex items-center justify-center border-2 border-white/10 ${avatarText} font-black text-white relative shadow-md animate-glow`}
+                    className={`${avatarSize} rounded-full flex items-center justify-center border-2 border-white/10 ${avatarText} font-black text-white relative shadow-md animate-glow transition-all duration-500 ease-in-out`}
                     style={{ backgroundColor: p.avatar ? undefined : (p.avatarColor || "#ff3d47") }}
                   >
                     {p.avatar ? (
@@ -85,11 +95,19 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
   const isDraggable = plan === "premium" || plan === "standard";
 
   if (screenShareActive) {
-    const floatTrayHeight = "h-44 sm:h-52";
-    const floatAvatarSize = "h-20 w-20 sm:h-22 sm:w-22";
-    const floatAvatarText = "text-lg sm:text-xl";
-    const floatTextClass = "text-[11px] sm:text-xs";
-    const floatIconSize = "h-3.5 w-3.5";
+    let floatTrayHeight = "h-44 sm:h-52";
+    let floatAvatarSize = "h-20 w-20 sm:h-22 sm:w-22";
+    let floatAvatarText = "text-lg sm:text-xl";
+    let floatTextClass = "text-[11px] sm:text-xs";
+    let floatIconSize = "h-3.5 w-3.5";
+
+    if (isFullscreen) {
+      floatTrayHeight = "h-32 sm:h-38";
+      floatAvatarSize = "h-14 w-14 sm:h-16 sm:w-16";
+      floatAvatarText = "text-sm sm:text-lg";
+      floatTextClass = "text-[9px] sm:text-[10px]";
+      floatIconSize = "h-3 w-3";
+    }
 
     return (
       <motion.section
@@ -97,22 +115,22 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
         dragConstraints={containerRef}
         dragElastic={0.05}
         dragMomentum={false}
-        className={`absolute bottom-4 left-4 z-20 ${floatTrayHeight} w-fit max-w-[90vw] sm:max-w-[480px] overflow-hidden rounded-xl border border-white/10 bg-black/60 backdrop-blur-md shadow-2xl transition-shadow duration-300 ${
+        className={`absolute bottom-4 left-4 z-20 ${floatTrayHeight} w-fit max-w-[90vw] sm:max-w-[480px] overflow-hidden rounded-xl border border-white/10 bg-black/60 backdrop-blur-md shadow-2xl transition-all duration-500 ease-in-out ${
           isDraggable 
             ? "cursor-grab active:cursor-grabbing hover:border-cyan/40 hover:shadow-cyan/10" 
-            : "pointer-events-auto"
+             : "pointer-events-auto"
         }`}
       >
         <div className="flex h-full w-full items-center gap-2.5 p-2 overflow-x-auto scrollbar-thin">
           {participants.map((p) => {
             const feed = feeds.find((f) => f.id.startsWith(p.uid));
             return (
-              <div key={p.uid} className={`relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center ${p.isSpeaking ? 'border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
+              <div key={p.uid} className={`relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-all duration-500 ease-in-out ${p.isSpeaking ? 'border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
                 {feed ? (
-                  <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover" />
+                  <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
                   <div 
-                    className={`${floatAvatarSize} rounded-full flex items-center justify-center border-2 border-white/10 ${floatAvatarText} font-black text-white relative shadow-md animate-glow`}
+                    className={`${floatAvatarSize} rounded-full flex items-center justify-center border-2 border-white/10 ${floatAvatarText} font-black text-white relative shadow-md animate-glow transition-all duration-500 ease-in-out`}
                     style={{ backgroundColor: p.avatar ? undefined : (p.avatarColor || "#ff3d47") }}
                   >
                     {p.avatar ? (

@@ -96,6 +96,37 @@ export function WatchRoomPage() {
   const [headerHovered, setHeaderHovered] = useState(false);
   const [activityLog, setActivityLog] = useState<ActivityLogItem[]>([]);
   const [activeTab, setActiveTab] = useState<"chat" | "participants">("chat");
+
+  const mediaContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!mediaContainerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      mediaContainerRef.current.requestFullscreen().catch((err) => {
+        console.error("Failed to enter fullscreen:", err);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = document.fullscreenElement === mediaContainerRef.current;
+      setIsFullscreen(isCurrentlyFullscreen);
+      if (isCurrentlyFullscreen) {
+        play("fullscreen-enter");
+      } else {
+        play("fullscreen-exit");
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [play]);
   
   const voicePrompted = useRef(false);
   const prevRoomRef = useRef<any>(null);
@@ -561,7 +592,12 @@ export function WatchRoomPage() {
       <div className="flex flex-col xl:flex-row gap-5 flex-1 min-h-0 transition-all duration-500">
         
         {/* Widescreen Video Stage Container */}
-        <div className="flex-1 min-h-0 flex flex-col gap-4 relative">
+        <div
+          ref={mediaContainerRef}
+          className={`flex-1 min-h-0 flex flex-col gap-4 relative transition-all duration-500 ${
+            isFullscreen ? "p-5 bg-[#090909] w-full h-full justify-between" : ""
+          }`}
+        >
           
           {/* Room Synced Notification Overlay */}
           <div className="absolute top-5 left-5 z-40 space-y-2 pointer-events-none max-w-sm">
@@ -624,6 +660,8 @@ export function WatchRoomPage() {
               participants={participants}
               onVideoEnded={() => setCinemaMode(false)}
               cinemaMode={cinemaMode}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={toggleFullscreen}
             />
           </div>
 
@@ -635,6 +673,7 @@ export function WatchRoomPage() {
                 participants={participants}
                 screenShareActive={screenShareActive}
                 variant="bottom-bar"
+                isFullscreen={isFullscreen}
               />
             </div>
           ) : (
