@@ -392,6 +392,11 @@ export function WatchRoomPage() {
   }, [participants, profile?.uid]);
   const isHandRaised = localParticipant?.isHandRaised || false;
 
+  const pendingRequests = useMemo(() => {
+    if (!room?.joinRequests) return [];
+    return Object.values(room.joinRequests).filter((req) => req.status === "pending");
+  }, [room?.joinRequests]);
+
   const handleToggleHandRaise = useCallback(async () => {
     if (!room || !profile) return;
     const nextHand = !isHandRaised;
@@ -750,11 +755,6 @@ export function WatchRoomPage() {
       });
     }
   };
-
-  const pendingRequests = useMemo(() => {
-    if (!room?.joinRequests) return [];
-    return Object.values(room.joinRequests).filter((req) => req.status === "pending");
-  }, [room?.joinRequests]);
 
   const handleApproveRequest = async (reqUser: any) => {
     play("click");
