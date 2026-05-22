@@ -32,8 +32,38 @@ export function App() {
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      if (!target) return;
+
+      // Exclude sliders/range inputs, text inputs, textareas, select, and video tags
+      if (target.closest('input[type="range"]') || target.closest('video')) {
+        return;
+      }
+
+      const tagName = target.tagName?.toLowerCase();
+      if (
+        (tagName === "input" && 
+         !["button", "submit", "checkbox", "radio"].includes((target as HTMLInputElement).type)) ||
+        tagName === "textarea" ||
+        tagName === "select"
+      ) {
+        return;
+      }
+
+      // Find if we clicked a button/link or an interactive element
       const button = target.closest("button") || target.closest('[role="button"]');
-      if (button && !(button as HTMLButtonElement).disabled && button.getAttribute("aria-disabled") !== "true") {
+      
+      // If we found a button/role-button, verify it's not disabled
+      if (button && ((button as HTMLButtonElement).disabled || button.getAttribute("aria-disabled") === "true")) {
+        return;
+      }
+
+      const isInteractive =
+        button ||
+        target.closest("a") ||
+        target.closest(".cursor-pointer") ||
+        window.getComputedStyle(target).cursor === "pointer";
+
+      if (isInteractive) {
         // Defer with setTimeout to allow any specific click handlers to play their specific sound first
         setTimeout(() => {
           play("click");
