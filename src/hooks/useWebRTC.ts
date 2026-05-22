@@ -148,7 +148,10 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             type: "offer",
             from: uid,
             to: remoteUid,
-            sdp: peer.localDescription!
+            sdp: {
+              type: peer.localDescription!.type,
+              sdp: peer.localDescription!.sdp
+            }
           });
         } catch (err) {
           console.error(`Error in negotiation with ${remoteUid}:`, err);
@@ -250,7 +253,15 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         console.log(`[WebRTC] Initiating offer to ${participant.uid}`);
         const offer = await peer.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
         await peer.setLocalDescription(offer);
-        await sendSignal({ type: "offer", from: uid, to: participant.uid, sdp: offer });
+        await sendSignal({
+          type: "offer",
+          from: uid,
+          to: participant.uid,
+          sdp: {
+            type: offer.type,
+            sdp: offer.sdp
+          }
+        });
       })
     );
   }, [createPeer, sendSignal, uid]);
@@ -553,6 +564,19 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             return;
           }
 
+          // Ignore stale signals created before we joined the session
+          if (localJoinedAt && signal.createdAt < localJoinedAt) {
+            console.log(`Ignoring stale signal created at ${signal.createdAt} before we joined at ${localJoinedAt}`);
+            return;
+          }
+
+          // Ignore signals from users not in the participants list
+          const remoteParticipant = participantsRef.current.find((p) => p.uid === signal.from);
+          if (!remoteParticipant) {
+            console.log(`Ignoring signal from ${signal.from} because they are not in the participants list.`);
+            return;
+          }
+
           if (!signal.from || signal.from === "undefined") {
             console.warn("[WebRTC] Received signal from invalid/undefined sender:", signal.from);
             return;
@@ -587,7 +611,10 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
                   type: "answer",
                   from: uid,
                   to: signal.from,
-                  sdp: peer.localDescription!
+                  sdp: {
+                    type: peer.localDescription!.type,
+                    sdp: peer.localDescription!.sdp
+                  }
                 });
                 await processQueuedCandidates(signal.from);
               } catch (err) {

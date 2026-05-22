@@ -555,7 +555,7 @@ export function WatchRoomPage() {
   const currentRoom = room;
   const currentProfile = profile;
   const remoteAudioStreams = webRTC.remoteStreams.filter((item) => item.stream.getAudioTracks().length > 0);
-  const screenShareActive = Boolean(webRTC.screenStream || remoteScreenStream || room.isScreenSharing);
+  const screenShareActive = isMobile ? false : Boolean(webRTC.screenStream || remoteScreenStream || room.isScreenSharing);
   const cameraOnlyMode = cameraFeeds.length > 0 && !screenShareActive;
 
   function cleanupWebRTC() {
@@ -826,6 +826,7 @@ export function WatchRoomPage() {
               cinemaMode={cinemaMode}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
+              isMobile={isMobile}
             />
           </div>
 

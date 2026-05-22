@@ -21,6 +21,7 @@ interface VideoStageProps {
   cinemaMode?: boolean;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  isMobile?: boolean;
 }
 
 
@@ -33,7 +34,7 @@ function youtubeEmbed(url: string) {
   return match ? `https://www.youtube.com/embed/${match[1]}?enablejsapi=1&rel=0` : url;
 }
 
-export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cameraFeeds = [], participants = [], onVideoEnded, cinemaMode = false, isFullscreen = false, onToggleFullscreen }: VideoStageProps) {
+export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cameraFeeds = [], participants = [], onVideoEnded, cinemaMode = false, isFullscreen = false, onToggleFullscreen, isMobile = false }: VideoStageProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const { play } = useUISound();
@@ -66,7 +67,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       return () => clearTimeout(timer);
     }
   }, [showZoomIndicator, objectFit]);
-  const activeScreenStream = screenStream || remoteScreenStream || null;
+  const activeScreenStream = isMobile ? null : (screenStream || remoteScreenStream || null);
   const hasVideo = Boolean(room.videoUrl);
   const hasActiveMedia = Boolean(
     activeScreenStream || (hasVideo && room.status !== "waiting" && room.status !== "ended")
@@ -223,10 +224,10 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
         </div>
       ) : (!room.videoUrl || room.status === "waiting" || room.status === "ended") ? (
         <div className="w-full flex items-center justify-center py-4">
-          <div className="flex flex-wrap gap-6 items-center justify-center w-full max-w-full mx-auto">
+          <div className="flex flex-wrap gap-3 sm:gap-6 items-center justify-center w-full max-w-full mx-auto">
             {participants.map((p) => {
               const isLocal = profile && p.uid === profile.uid;
-              const isSharing = p.isScreenSharing;
+              const isSharing = isMobile ? false : p.isScreenSharing;
               const screenFeed = isSharing ? (isLocal ? screenStream : (p.uid === room.screenShareHost ? remoteScreenStream : null)) : null;
               
               const feed = cameraFeeds.find((f) => f.id.startsWith(p.uid));
@@ -238,10 +239,10 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                   style={{
                     background: `linear-gradient(to bottom, ${(p.avatarColor || "#ff3d47")}22, #121216)`
                   }}
-                  className={`participant-card relative flex flex-col items-center justify-center rounded-[24px] sm:rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-[border-color,box-shadow] duration-200 ${
+                  className={`participant-card relative flex flex-col items-center justify-center rounded-[20px] sm:rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-[border-color,box-shadow] duration-200 ${
                     (feed || screenFeed)
                       ? "aspect-video w-full max-w-[92%] sm:w-[400px] md:w-[480px]"
-                      : "aspect-square w-[45%] max-w-[180px] sm:w-[260px] md:w-[300px]"
+                      : "aspect-square w-[46%] max-w-[180px] sm:w-[260px] md:w-[300px]"
                   } ${
                     isSpeaking 
                       ? "speaking border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.2)]" 
@@ -281,7 +282,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                         className="flex flex-col items-center justify-center space-y-4"
                       >
                         <div
-                          className={`relative h-24 w-24 sm:h-28 sm:w-28 rounded-full flex items-center justify-center border-2 bg-neutral-900 text-3xl sm:text-4xl font-black text-white transition-all duration-300 ${
+                          className={`relative h-16 w-16 sm:h-28 sm:w-28 rounded-full flex items-center justify-center border-2 bg-neutral-900 text-xl sm:text-4xl font-black text-white transition-all duration-300 ${
                             isSpeaking 
                               ? "border-emerald-400 ring-4 ring-emerald-500/20" 
                               : "border-white/10"
@@ -299,9 +300,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                   </AnimatePresence>
  
                   {/* Name tag and microphone status */}
-                  <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-[#090909]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/5 max-w-[85%] z-20">
-                    <span className="text-[11px] font-bold text-white flex items-center gap-1.5 truncate">
-                      <span className="truncate max-w-[80px]">{p.name}</span>
+                  <div className="absolute bottom-2.5 sm:bottom-4 left-2.5 sm:left-4 flex items-center gap-1.5 sm:gap-2 bg-[#090909]/85 backdrop-blur-md px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border border-white/5 max-w-[88%] z-20">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-white flex items-center gap-1 sm:gap-1.5 truncate">
+                      <span className="truncate max-w-[50px] sm:max-w-[80px]">{p.name}</span>
                       {p.isHost && (
                         <span className="bg-[#ff3d47]/20 text-[#ff3d47] text-[8px] px-1 py-0.2 rounded font-black uppercase tracking-wider border border-[#ff3d47]/30 flex-shrink-0">
                           Host
@@ -309,9 +310,9 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                       )}
                     </span>
                     {p.isMuted ? (
-                      <MicOff className="h-3 w-3 text-red-500 flex-shrink-0" />
+                      <MicOff className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-red-500 flex-shrink-0" />
                     ) : (
-                      <Mic className={`h-3 w-3 flex-shrink-0 ${isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />
+                      <Mic className={`h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0 ${isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />
                     )}
                   </div>
                 </motion.div>
