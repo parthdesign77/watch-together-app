@@ -1,4 +1,4 @@
-import { MonitorUp, Video, Wifi, WifiOff, Hand, Volume2, VolumeX } from "lucide-react";
+import { MonitorUp, Video, Wifi, WifiOff, Hand, Volume2, VolumeX, Crown, Sparkles } from "lucide-react";
 import type { Participant } from "../../types";
 import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
@@ -30,7 +30,7 @@ export function ParticipantsPanel({ participants }: { participants: Participant[
               key={participant.uid}
               className={`flex flex-col gap-2 rounded-lg border p-2.5 transition-all duration-350 ${
                 isSpeaking
-                  ? "border-emerald-500 bg-emerald-500/5 shadow-[0_0_12px_rgba(16,185,129,0.15)] scale-[1.01]"
+                  ? "border-emerald-500 bg-emerald-500/5 shadow-[0_0_12px_rgba(16,185,129,0.15)]"
                   : "border-white/10 bg-white/6 hover:bg-white/10"
               }`}
             >
@@ -39,6 +39,19 @@ export function ParticipantsPanel({ participants }: { participants: Participant[
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="truncate text-sm font-black text-white">{participant.name}</p>
+                    {participant.subscriptionPlan && (
+                      <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider shrink-0 ${
+                        participant.subscriptionPlan === "premium"
+                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          : participant.subscriptionPlan === "standard"
+                          ? "bg-cyan-500/20 text-cyan border border-cyan-500/30"
+                          : "bg-white/10 text-neutral-400 border border-white/5"
+                      }`}>
+                        {participant.subscriptionPlan === "premium" && <Crown className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />}
+                        {participant.subscriptionPlan === "standard" && <Sparkles className="h-2.5 w-2.5 fill-cyan text-cyan" />}
+                        {participant.subscriptionPlan}
+                      </span>
+                    )}
                     {participant.isHandRaised && (
                       <span className="inline-flex items-center gap-0.5 bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.2 rounded-full border border-amber-500/30 animate-pulse font-black uppercase shrink-0">
                         <Hand className="h-2.5 w-2.5 fill-amber-400" />

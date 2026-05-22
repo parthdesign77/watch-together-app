@@ -45,6 +45,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const peers = useRef<Record<string, RTCPeerConnection>>({});
   const localStreams = useRef<MediaStream[]>([]);
   const voiceStreamRef = useRef<MediaStream | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   const processedSignals = useRef<Set<string>>(new Set());
   const analyserCleanup = useRef<(() => void) | null>(null);
   const candidateQueue = useRef<Record<string, RTCIceCandidateInit[]>>({});
@@ -90,16 +92,21 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       if (!roomId || !uid) throw new Error("Missing room or user for peer setup.");
       if (peers.current[remoteUid]) return peers.current[remoteUid];
 
+      console.log(`[WebRTC] Creating PeerConnection for remote user: ${remoteUid}`);
       const peer = new RTCPeerConnection({ iceServers: turnServers });
       peers.current[remoteUid] = peer;
       negotiationState.current[remoteUid] = { makingOffer: false, ignoreOffer: false };
 
       localStreams.current.forEach((stream) => {
-        stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+        stream.getTracks().forEach((track) => {
+          console.log(`[Track Add] Adding local track: kind=${track.kind}, enabled=${track.enabled}, readyState=${track.readyState} to peer ${remoteUid}`);
+          peer.addTrack(track, stream);
+        });
       });
 
       peer.onicecandidate = (event) => {
         if (event.candidate) {
+          console.log(`[ICE] Local candidate found for peer ${remoteUid}: ${event.candidate.candidate}`);
           void sendSignal({
             type: "candidate",
             from: uid,
@@ -109,11 +116,21 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         }
       };
 
+      peer.oniceconnectionstatechange = () => {
+        console.log(`[ICE Connection] Connection with peer ${remoteUid} changed to: ${peer.iceConnectionState}`);
+      };
+
+      peer.onsignalingstatechange = () => {
+        console.log(`[Signaling] Signaling state with peer ${remoteUid} changed to: ${peer.signalingState}`);
+      };
+
       peer.onnegotiationneeded = async () => {
         try {
+          console.log(`[Negotiation] Negotiation needed triggered for peer ${remoteUid}`);
           negotiationState.current[remoteUid].makingOffer = true;
           const offer = await peer.createOffer();
           if (peer.signalingState !== "stable") return;
+          console.log(`[Negotiation] Creating and setting local offer for peer ${remoteUid}`);
           await peer.setLocalDescription(offer);
           await sendSignal({
             type: "offer",
@@ -130,14 +147,16 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
       peer.ontrack = (event) => {
         const stream = event.streams[0] || new MediaStream([event.track]);
+        console.log(`[Track Recv] Received track from ${remoteUid}: kind=${event.track.kind}, enabled=${event.track.enabled}, readyState=${event.track.readyState}, streamId=${stream.id}`);
         
         event.track.onended = () => {
-          console.log(`Track ${event.track.id} (${event.track.kind}) ended for peer ${remoteUid}`);
+          console.log(`[Track Ended] Track ${event.track.id} (${event.track.kind}) ended for peer ${remoteUid}`);
           setRemoteStreams((current) => {
             return current.filter((item) => {
               if (item.uid === remoteUid && item.id === stream.id) {
-                // Only keep remote streams that have at least one active track
-                return item.stream.getTracks().some((t) => t.readyState === "live");
+                const hasActive = item.stream.getTracks().some((t) => t.readyState === "live");
+                console.log(`[Track Ended] Checking remaining tracks for stream ${stream.id}: hasActive=${hasActive}`);
+                return hasActive;
               }
               return true;
             });
@@ -145,13 +164,23 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         };
 
         setRemoteStreams((current) => {
-          const exists = current.some((item) => item.uid === remoteUid && item.id === stream.id);
-          if (exists) return current;
-          return [...current, { uid: remoteUid, id: stream.id, stream }];
+          const streamIndex = current.findIndex((item) => item.uid === remoteUid && item.id === stream.id);
+          if (streamIndex > -1) {
+            console.log(`[Track Recv] Stream ${stream.id} already exists. Updating tracks to force React re-render.`);
+            const updated = [...current];
+            updated[streamIndex] = {
+              ...updated[streamIndex],
+              stream: new MediaStream(stream.getTracks())
+            };
+            return updated;
+          }
+          console.log(`[Track Recv] Adding new remote stream ${stream.id} for user ${remoteUid}`);
+          return [...current, { uid: remoteUid, id: stream.id, stream: new MediaStream(stream.getTracks()) }];
         });
       };
 
       peer.onconnectionstatechange = () => {
+        console.log(`[Connection State] Peer ${remoteUid} changed connectionState to: ${peer.connectionState}`);
         if (["closed", "failed", "disconnected"].includes(peer.connectionState)) {
           console.log(`Connection state with ${remoteUid} changed to ${peer.connectionState}. Cleaning up.`);
           try {
@@ -174,16 +203,28 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
   const broadcastOffers = useCallback(async () => {
     if (!uid) return;
-    const remotes = participants.filter((participant) => participant.uid !== uid);
+    const remotes = participantsRef.current.filter((participant) => participant.uid !== uid);
     await Promise.all(
       remotes.map(async (participant) => {
+        // Enforce signaling collision logic:
+        // Only initiate offer if our uid > participant's uid
+        if (uid < participant.uid) {
+          console.log(`[WebRTC] Skipping initiating offer to ${participant.uid} (waiting for polite peer signaling)`);
+          return;
+        }
         const peer = createPeer(participant.uid);
+        if (peer.connectionState === "connected" || peer.connectionState === "connecting") {
+          console.log(`[WebRTC] Skip initiating offer to ${participant.uid} because connection state is: ${peer.connectionState}`);
+          return;
+        }
+
+        console.log(`[WebRTC] Initiating offer to ${participant.uid}`);
         const offer = await peer.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
         await peer.setLocalDescription(offer);
         await sendSignal({ type: "offer", from: uid, to: participant.uid, sdp: offer });
       })
     );
-  }, [createPeer, participants, sendSignal, uid]);
+  }, [createPeer, sendSignal, uid]);
 
   const addLocalStream = useCallback(
     (stream: MediaStream) => {
@@ -201,9 +242,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           }
         });
       });
-      void broadcastOffers();
     },
-    [broadcastOffers]
+    []
   );
 
   const removeLocalStream = useCallback(
@@ -221,9 +261,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           }
         });
       });
-      void broadcastOffers();
     },
-    [broadcastOffers]
+    []
   );
 
   const startVoice = useCallback(async () => {
@@ -233,6 +272,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       analyserCleanup.current?.();
     }
 
+    console.log("[WebRTC] Starting voice capture...");
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
@@ -254,17 +294,42 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     const data = new Uint8Array(analyser.frequencyBinCount);
     let raf = 0;
 
+    let speakingTimer: any = null;
+    let currentSpeaking = false;
+
     const tick = () => {
       analyser.getByteFrequencyData(data);
       const volume = data.reduce((sum, value) => sum + value, 0) / data.length;
       const isTrackMuted = stream.getAudioTracks().some((t) => !t.enabled);
-      setSpeaking(volume > 18 && !isTrackMuted);
+      
+      const threshold = 18;
+      const isAboveThreshold = volume > threshold && !isTrackMuted;
+
+      if (isAboveThreshold) {
+        if (!currentSpeaking) {
+          currentSpeaking = true;
+          setSpeaking(true);
+        }
+        if (speakingTimer) {
+          clearTimeout(speakingTimer);
+          speakingTimer = null;
+        }
+      } else {
+        if (currentSpeaking && !speakingTimer) {
+          speakingTimer = setTimeout(() => {
+            currentSpeaking = false;
+            setSpeaking(false);
+            speakingTimer = null;
+          }, 350); // smooth debounce to prevent rapid flickering
+        }
+      }
       raf = requestAnimationFrame(tick);
     };
     tick();
 
     analyserCleanup.current = () => {
       cancelAnimationFrame(raf);
+      if (speakingTimer) clearTimeout(speakingTimer);
       void audioContext.close();
     };
   }, [addLocalStream, removeLocalStream, audioInputDeviceId, noiseSuppressionEnabled]);
@@ -276,6 +341,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   }, [audioInputDeviceId, noiseSuppressionEnabled, startVoice]);
 
   const startCamera = useCallback(async (plan?: string) => {
+    console.log(`[WebRTC] Starting camera with plan tier: ${plan || "free"}`);
     let videoConstraints: MediaTrackConstraints = {
       width: { ideal: 640 },
       height: { ideal: 480 },
@@ -305,7 +371,6 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     } catch (err) {
       console.warn("Camera failed with preferred constraints, retrying with flexible defaults...", err);
       try {
-        // Retry with highly standard lenient constraints
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { ideal: 640 },
@@ -323,20 +388,37 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       }
     }
 
+    cameraStreamRef.current = stream;
     setCameraStream(stream);
+
     addLocalStream(stream);
     return stream;
   }, [addLocalStream]);
 
   const stopCamera = useCallback(() => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
-      removeLocalStream(cameraStream);
+    console.log("[WebRTC] Stopping camera stream...");
+    const stream = cameraStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      removeLocalStream(stream);
+      cameraStreamRef.current = null;
       setCameraStream(null);
     }
-  }, [cameraStream, removeLocalStream]);
+  }, [removeLocalStream]);
+
+  const stopScreenShare = useCallback(() => {
+    console.log("[WebRTC] Stopping screen share...");
+    const stream = screenStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      removeLocalStream(stream);
+      screenStreamRef.current = null;
+      setScreenStream(null);
+    }
+  }, [removeLocalStream]);
 
   const startScreenShare = useCallback(async (mode: "entire-screen" | "window" = "entire-screen", plan?: string) => {
+    console.log(`[WebRTC] Starting screen share with mode: ${mode}, plan tier: ${plan || "free"}`);
     let videoConstraints: MediaTrackConstraints = {
       displaySurface: mode === "entire-screen" ? "monitor" : "window",
       width: { ideal: 854 },
@@ -362,7 +444,6 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
     let stream: MediaStream;
     try {
-      // Attempt 1: High-fidelity flat audio profile for screenshare system/movie audio
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: videoConstraints,
         audio: {
@@ -374,14 +455,12 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     } catch (e) {
       console.warn("Failed screen share with high-fidelity audio, trying standard audio...", e);
       try {
-        // Attempt 2: Standard audio
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: videoConstraints,
           audio: true
         });
       } catch (e2) {
         console.warn("Failed screen share with standard audio, trying video-only fallback...", e2);
-        // Attempt 3: Video-only fallback to guarantee screenshare opens successfully
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: videoConstraints,
           audio: false
@@ -389,34 +468,34 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       }
     }
 
+    screenStreamRef.current = stream;
     setScreenStream(stream);
-    addLocalStream(stream);
 
-    stream.getVideoTracks()[0]?.addEventListener("ended", () => {
-      stream.getTracks().forEach((track) => track.stop());
-      removeLocalStream(stream);
-      setScreenStream(null);
-    });
-    return stream;
-  }, [addLocalStream, removeLocalStream]);
-
-  const stopScreenShare = useCallback(() => {
-    if (screenStream) {
-      screenStream.getTracks().forEach((track) => track.stop());
-      removeLocalStream(screenStream);
-      setScreenStream(null);
+    const screenTrack = stream.getVideoTracks()[0];
+    if (screenTrack) {
+      screenTrack.addEventListener("ended", () => {
+        console.log("[WebRTC] Screen track ended natively.");
+        stopScreenShare();
+      });
     }
-  }, [screenStream, removeLocalStream]);
+
+    addLocalStream(stream);
+    return stream;
+  }, [addLocalStream, stopScreenShare]);
 
   const toggleMute = useCallback((forceState?: boolean) => {
     setMuted((nextMuted) => {
       const shouldMute = forceState !== undefined ? forceState : !nextMuted;
-      voiceStream?.getAudioTracks().forEach((track) => {
-        track.enabled = !shouldMute;
-      });
+      const stream = voiceStreamRef.current;
+      if (stream) {
+        stream.getAudioTracks().forEach((track) => {
+          track.enabled = !shouldMute;
+          console.log(`[Audio Mute] Audio track ${track.id} enabled state set to: ${!shouldMute}`);
+        });
+      }
       return shouldMute;
     });
-  }, [voiceStream]);
+  }, []);
 
   useEffect(() => {
     if (!roomId || !uid) return;
@@ -433,9 +512,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
           const signal = change.doc.data() as SignalPayload & { receiverJoinedAt?: number };
 
-          // Filter out signaling documents older than 1 minute to avoid processing old session data
-          const signalAge = Date.now() - signal.createdAt;
-          if (signalAge > 60000) return;
+          // Filter out signaling documents older than 10 minutes to avoid processing old session data, checking absolute difference for system clock skew protection
+          const signalAge = Math.abs(Date.now() - signal.createdAt);
+          if (signalAge > 600000) return;
 
           // Ignore signals targeted to an older session of this user
           const localParticipant = participantsRef.current.find((p) => p.uid === uid);

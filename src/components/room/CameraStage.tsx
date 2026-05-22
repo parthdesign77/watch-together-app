@@ -49,7 +49,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
           {participants.map((p) => {
             const feed = feeds.find((f) => f.id.startsWith(p.uid));
             return (
-              <div key={p.uid} className={`relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-all duration-500 ease-in-out ${p.isSpeaking ? 'border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
+              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-all duration-500 ease-in-out ${p.isSpeaking ? 'speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
                 {feed ? (
                   <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
@@ -62,9 +62,6 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                     ) : (
                       (p.name || "Guest").slice(0, 2).toUpperCase()
                     )}
-                    {p.isSpeaking && (
-                      <div className="absolute -inset-1 rounded-full border border-emerald-400 animate-ping opacity-75" />
-                    )}
                   </div>
                 )}
                 
@@ -74,7 +71,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                   {p.isMuted ? (
                     <MicOff className={`${iconSize} text-red-500 flex-shrink-0`} />
                   ) : (
-                    <Mic className={`${iconSize} flex-shrink-0 ${p.isSpeaking ? "text-emerald-400 animate-bounce" : "text-neutral-400"}`} />
+                    <Mic className={`${iconSize} flex-shrink-0 ${p.isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />
                   )}
                 </div>
               </div>
@@ -125,7 +122,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
           {participants.map((p) => {
             const feed = feeds.find((f) => f.id.startsWith(p.uid));
             return (
-              <div key={p.uid} className={`relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-all duration-500 ease-in-out ${p.isSpeaking ? 'border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
+              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-all duration-500 ease-in-out ${p.isSpeaking ? 'speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
                 {feed ? (
                   <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
@@ -138,9 +135,6 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                     ) : (
                       (p.name || "Guest").slice(0, 2).toUpperCase()
                     )}
-                    {p.isSpeaking && (
-                      <div className="absolute -inset-1 rounded-full border border-emerald-400 animate-ping opacity-75" />
-                    )}
                   </div>
                 )}
                 
@@ -150,7 +144,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                   {p.isMuted ? (
                     <MicOff className={`${floatIconSize} text-red-500 flex-shrink-0`} />
                   ) : (
-                    <Mic className={`${floatIconSize} flex-shrink-0 ${p.isSpeaking ? "text-emerald-400 animate-bounce" : "text-neutral-400"}`} />
+                    <Mic className={`${floatIconSize} flex-shrink-0 ${p.isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />
                   )}
                 </div>
               </div>

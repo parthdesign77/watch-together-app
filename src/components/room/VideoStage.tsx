@@ -41,6 +41,31 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
   const [volume, setVolume] = useState(0.86);
   const [drift, setDrift] = useState(0);
   const [hovered, setHovered] = useState(false);
+  const [objectFit, setObjectFit] = useState<'contain' | 'cover'>('contain');
+  const lastTap = useRef<number>(0);
+  const [showZoomIndicator, setShowZoomIndicator] = useState(false);
+
+  const handleDoubleTap = (e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("input") || target.closest("label") || target.closest("a")) {
+      return;
+    }
+    
+    const now = Date.now();
+    if (now - lastTap.current < 300) {
+      setObjectFit((prev) => (prev === 'contain' ? 'cover' : 'contain'));
+      setShowZoomIndicator(true);
+      play("select");
+    }
+    lastTap.current = now;
+  };
+
+  useEffect(() => {
+    if (showZoomIndicator) {
+      const timer = setTimeout(() => setShowZoomIndicator(false), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [showZoomIndicator, objectFit]);
   const activeScreenStream = screenStream || remoteScreenStream || null;
   const hasVideo = Boolean(room.videoUrl);
   const hasActiveMedia = Boolean(
@@ -162,12 +187,13 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       }
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={handleDoubleTap}
     >
       
 
       {activeScreenStream ? (
         <div className="relative h-full w-full">
-          <StreamVideo stream={activeScreenStream} muted={true} className="h-full w-full object-contain" />
+          <StreamVideo stream={activeScreenStream} muted={true} className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`} />
           {hovered && (
             <div className="absolute right-5 bottom-5 z-30">
               <Button
@@ -213,13 +239,13 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                   style={{
                     background: `linear-gradient(to bottom, ${(p.avatarColor || "#ff3d47")}22, #121216)`
                   }}
-                  className={`relative flex flex-col items-center justify-center rounded-[24px] sm:rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-500 ease-out ${
+                  className={`participant-card relative flex flex-col items-center justify-center rounded-[24px] sm:rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-500 ease-out ${
                     (feed || screenFeed)
                       ? "aspect-video w-full max-w-[92%] sm:w-[400px] md:w-[480px]"
                       : "aspect-square w-[45%] max-w-[180px] sm:w-[260px] md:w-[300px]"
                   } ${
                     isSpeaking 
-                      ? "border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.2)] scale-[1.02]" 
+                      ? "speaking border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.2)]" 
                       : "border-white/10 hover:border-white/20"
                   }`}
                 >
@@ -258,7 +284,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                         <div
                           className={`relative h-24 w-24 sm:h-28 sm:w-28 rounded-full flex items-center justify-center border-2 bg-neutral-900 text-3xl sm:text-4xl font-black text-white transition-all duration-300 ${
                             isSpeaking 
-                              ? "border-emerald-400 ring-4 ring-emerald-500/20 scale-105" 
+                              ? "border-emerald-400 ring-4 ring-emerald-500/20" 
                               : "border-white/10"
                           }`}
                           style={{ backgroundColor: p.avatar ? undefined : (p.avatarColor || "#ff3d47") }}
@@ -268,14 +294,11 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                           ) : (
                             (p.name || "Guest").slice(0, 2).toUpperCase()
                           )}
-                          {isSpeaking && (
-                            <div className="absolute -inset-1 rounded-full border-2 border-emerald-400 animate-ping opacity-75" />
-                          )}
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
-
+ 
                   {/* Name tag and microphone status */}
                   <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-[#090909]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/5 max-w-[85%] z-20">
                     <span className="text-[11px] font-bold text-white flex items-center gap-1.5 truncate">
@@ -289,7 +312,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                     {p.isMuted ? (
                       <MicOff className="h-3 w-3 text-red-500 flex-shrink-0" />
                     ) : (
-                      <Mic className={`h-3 w-3 flex-shrink-0 ${isSpeaking ? "text-emerald-400 animate-bounce" : "text-neutral-400"}`} />
+                      <Mic className={`h-3 w-3 flex-shrink-0 ${isSpeaking ? "text-emerald-400" : "text-neutral-400"}`} />
                     )}
                   </div>
                 </motion.div>
@@ -308,7 +331,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
       ) : (
         <video
           ref={videoRef}
-          className="h-full w-full object-contain"
+          className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`}
           playsInline
           onPlay={() => isHost && void syncPlayback(true)}
           onPause={() => isHost && void syncPlayback(false)}
@@ -419,6 +442,23 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
             </div>
           </motion.div>
         ) : null}
+      </AnimatePresence>
+
+      {/* Zoom / Aspect Ratio Overlay Pill */}
+      <AnimatePresence>
+        {showZoomIndicator && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85, y: "-50%", x: "-50%" }}
+            animate={{ opacity: 1, scale: 1, y: "-50%", x: "-50%" }}
+            exit={{ opacity: 0, scale: 0.85, y: "-50%", x: "-50%" }}
+            className="absolute top-1/2 left-1/2 z-50 pointer-events-none bg-black/90 backdrop-blur-xl border border-white/10 px-5 py-2.5 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex items-center gap-2"
+          >
+            <div className="h-2 w-2 rounded-full bg-[#ff3d47] animate-ping" />
+            <span className="text-xs font-black text-white uppercase tracking-wider">
+              {objectFit === "cover" ? "Filled Screen (Zoom)" : "Original Aspect"}
+            </span>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

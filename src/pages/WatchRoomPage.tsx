@@ -110,6 +110,7 @@ export function WatchRoomPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
+  const [mobileParticipantsOpen, setMobileParticipantsOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -190,21 +191,22 @@ export function WatchRoomPage() {
 
   const remoteScreenStream = useMemo(() => {
     if (!room?.screenShareHost) return null;
+    const hostStreams = webRTC.remoteStreams.filter(
+      (item) => item.uid === room.screenShareHost && item.stream.getVideoTracks().length > 0
+    );
+    if (hostStreams.length === 0) return null;
+    
     const hostParticipant = room.participants?.[room.screenShareHost];
     if (hostParticipant?.screenStreamId) {
-      const match = webRTC.remoteStreams.find(
-        (item) => item.uid === room.screenShareHost && item.id === hostParticipant.screenStreamId
-      );
+      const match = hostStreams.find((s) => s.id === hostParticipant.screenStreamId);
       if (match) return match.stream;
     }
-    return (
-      webRTC.remoteStreams.find((item) => {
-        if (item.uid !== room.screenShareHost) return false;
-        if (item.stream.getVideoTracks().length === 0) return false;
-        if (hostParticipant?.cameraStreamId && item.id === hostParticipant.cameraStreamId) return false;
-        return true;
-      })?.stream || null
-    );
+    if (hostStreams.length === 1) return hostStreams[0].stream;
+    if (hostParticipant?.cameraStreamId) {
+      const nonCamera = hostStreams.find((s) => s.id !== hostParticipant.cameraStreamId);
+      if (nonCamera) return nonCamera.stream;
+    }
+    return hostStreams[0].stream;
   }, [room?.screenShareHost, room?.participants, webRTC.remoteStreams]);
 
   const cameraFeeds = useMemo<CameraFeed[]>(() => {
@@ -1024,6 +1026,7 @@ export function WatchRoomPage() {
           hasScreenStream={Boolean(webRTC.screenStream)}
           isHandRaised={isHandRaised}
           unreadCount={unreadCount}
+          participantsCount={participants.length}
           onStartVoice={() =>
             webRTC.startVoice()
               .then(() => pushToast({ title: "Voice connected", description: "Speaking indicators are now active.", type: "success" }))
@@ -1034,8 +1037,21 @@ export function WatchRoomPage() {
           onShareScreen={shareScreen}
           onStopScreen={stopScreen}
           onToggleHandRaise={handleToggleHandRaise}
-          onOpenChat={() => setMobileChatOpen(true)}
-          onOpenOptions={() => setMobileOptionsOpen(true)}
+          onOpenChat={() => {
+            setMobileChatOpen(true);
+            setMobileParticipantsOpen(false);
+            setMobileOptionsOpen(false);
+          }}
+          onOpenParticipants={() => {
+            setMobileParticipantsOpen(true);
+            setMobileChatOpen(false);
+            setMobileOptionsOpen(false);
+          }}
+          onOpenOptions={() => {
+            setMobileOptionsOpen(true);
+            setMobileChatOpen(false);
+            setMobileParticipantsOpen(false);
+          }}
           onLeaveRoom={() => setLeaveModalOpen(true)}
           onSendReaction={handleSendReaction}
         />
@@ -1052,6 +1068,61 @@ export function WatchRoomPage() {
             isMobileView={true}
             onClose={() => setMobileChatOpen(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Participants slide-up sheet */}
+      <AnimatePresence>
+        {isMobile && mobileParticipantsOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+            {/* Backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileParticipantsOpen(false)}
+              className="absolute inset-0 bg-black/65 backdrop-blur-sm pointer-events-auto"
+            />
+            
+            {/* Slide up sheet */}
+            <motion.aside
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0.1, bottom: 1 }}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100 || info.velocity.y > 200) {
+                  setMobileParticipantsOpen(false);
+                }
+              }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="w-full max-w-md max-h-[85vh] bg-[#0c0c0e]/95 border-t border-white/10 rounded-t-[28px] flex flex-col relative overflow-hidden pointer-events-auto shadow-[0_-15px_40px_rgba(0,0,0,0.8)] pb-safe-bottom"
+            >
+              {/* Drag Handle */}
+              <div className="flex-shrink-0 pt-3 pb-1 cursor-row-resize">
+                <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto" />
+              </div>
+
+              <div className="flex items-center justify-between border-b border-white/10 px-5 pb-3 pt-2">
+                <div>
+                  <h2 className="font-display text-lg font-bold text-white">Participants</h2>
+                  <p className="text-xs text-neutral-400">Manage audio levels & statuses</p>
+                </div>
+                <button
+                  onClick={() => setMobileParticipantsOpen(false)}
+                  className="text-xs text-neutral-400 hover:text-white px-3 py-1 bg-white/5 hover:bg-white/10 rounded-lg transition font-bold"
+                >
+                  Done
+                </button>
+              </div>
+              
+              <div className="min-h-0 flex-1 overflow-y-auto p-5 scrollbar-none">
+                <ParticipantsPanel participants={participants} />
+              </div>
+            </motion.aside>
+          </div>
         )}
       </AnimatePresence>
 

@@ -37,7 +37,9 @@ export function participantFromProfile(profile: UserProfile, isHost = false): Pa
     isBuffering: false,
     isScreenSharing: false,
     isCameraOn: false,
-    connectionQuality: "excellent"
+    connectionQuality: "excellent",
+    subscriptionPlan: profile.subscriptionPlan || "free",
+    premiumBadge: profile.premiumBadge || false
   };
 }
 

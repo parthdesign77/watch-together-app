@@ -39,6 +39,8 @@ export interface Participant {
   connectionQuality?: "excellent" | "good" | "fair" | "poor";
   isHandRaised?: boolean;
   isTyping?: boolean;
+  subscriptionPlan?: SubscriptionPlan;
+  premiumBadge?: boolean;
 }
 
 export interface WatchRoom {

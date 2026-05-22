@@ -7,7 +7,7 @@ import { Avatar } from "../ui/Avatar";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { useUISound } from "../../hooks/useUISound";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 
 interface ChatPanelProps {
   roomId: string;
@@ -44,6 +44,7 @@ export function ChatPanel({ roomId, profile, messages, participants, isMobileVie
   const typingTimer = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const { play } = useUISound();
+  const dragControls = useDragControls();
 
   // Scroll to bottom when a new message arrives
   useEffect(() => {
@@ -128,6 +129,8 @@ export function ChatPanel({ roomId, profile, messages, participants, isMobileVie
         {/* Slide up sheet */}
         <motion.aside
           drag="y"
+          dragControls={dragControls}
+          dragListener={false}
           dragConstraints={{ top: 0 }}
           dragElastic={{ top: 0.1, bottom: 1 }}
           onDragEnd={(e, info) => {
@@ -142,7 +145,10 @@ export function ChatPanel({ roomId, profile, messages, participants, isMobileVie
           className="w-full max-w-md h-[80vh] bg-[#0c0c0e]/95 border-t border-white/10 rounded-t-[28px] flex flex-col relative overflow-hidden pointer-events-auto shadow-[0_-15px_40px_rgba(0,0,0,0.8)] pb-safe-bottom"
         >
           {/* Drag Handle */}
-          <div className="flex-shrink-0 pt-3 pb-1 cursor-row-resize">
+          <div 
+            className="flex-shrink-0 pt-3 pb-1 cursor-row-resize touch-none"
+            onPointerDown={(e) => dragControls.start(e)}
+          >
             <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto" />
           </div>
 
