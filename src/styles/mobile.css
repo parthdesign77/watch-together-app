@@ -149,4 +149,26 @@
   .fullscreen-emoji-particle span {
     filter: none !important;
   }
+
+  /* Hardware-accelerated smooth animations and touch optimizations */
+  button, 
+  a, 
+  input, 
+  select, 
+  textarea, 
+  [role="button"],
+  .cursor-pointer {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  
+  input[type="text"], 
+  input[type="email"], 
+  input[type="password"], 
+  textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }

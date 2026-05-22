@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Chrome, KeyRound, Loader2, Mail, MonitorPlay } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
@@ -7,6 +7,11 @@ import { useUiStore } from "../store/uiStore";
 
 export function LoginPage() {
   const { user, loading, error: authError, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, clearError } = useAuth();
+  
+  useEffect(() => {
+    localStorage.setItem("hasVisitedBefore", "true");
+  }, []);
+
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

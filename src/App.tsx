@@ -1,33 +1,66 @@
-import { useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, lazy, Suspense } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
-import { BillingPage } from "./pages/BillingPage";
-import { CatalogPage } from "./pages/CatalogPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { DetailPage } from "./pages/DetailPage";
-import { LandingPage } from "./pages/LandingPage";
-import { LoginPage } from "./pages/LoginPage";
-import { PricingPage } from "./pages/PricingPage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { SearchPage } from "./pages/SearchPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import {
-  AdminPage,
-  ContinueWatchingPage,
-  NotFoundPage,
-  NotificationsPage,
-  OAuthScreen,
-  PaymentFailedPage,
-  PaymentSuccessPage,
-  RoomExpiredPage
-} from "./pages/UtilityPages";
-import { WatchRoomPage } from "./pages/WatchRoomPage";
-import { WatchlistPage } from "./pages/WatchlistPage";
 import { useUISound } from "./hooks/useUISound";
+import { useAuth } from "./context/AuthContext";
+
+// Lazy loaded page components to optimize bundle size and rendering speeds
+const LandingPage = lazy(() => import("./pages/LandingPage").then(m => ({ default: m.LandingPage })));
+const LoginPage = lazy(() => import("./pages/LoginPage").then(m => ({ default: m.LoginPage })));
+const DashboardPage = lazy(() => import("./pages/DashboardPage").then(m => ({ default: m.DashboardPage })));
+const CatalogPage = lazy(() => import("./pages/CatalogPage").then(m => ({ default: m.CatalogPage })));
+const DetailPage = lazy(() => import("./pages/DetailPage").then(m => ({ default: m.DetailPage })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })));
+const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const WatchRoomPage = lazy(() => import("./pages/WatchRoomPage").then(m => ({ default: m.WatchRoomPage })));
+const WatchlistPage = lazy(() => import("./pages/WatchlistPage").then(m => ({ default: m.WatchlistPage })));
+const PricingPage = lazy(() => import("./pages/PricingPage").then(m => ({ default: m.PricingPage })));
+const BillingPage = lazy(() => import("./pages/BillingPage").then(m => ({ default: m.BillingPage })));
+
+// Dynamic named imports from UtilityPages
+const AdminPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.AdminPage })));
+const ContinueWatchingPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.ContinueWatchingPage })));
+const NotFoundPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.NotFoundPage })));
+const NotificationsPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.NotificationsPage })));
+const OAuthScreen = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.OAuthScreen })));
+const PaymentFailedPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.PaymentFailedPage })));
+const PaymentSuccessPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.PaymentSuccessPage })));
+const RoomExpiredPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.RoomExpiredPage })));
+
+function GlobalLoader() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-[#030303] text-white">
+      <div className="flex flex-col items-center justify-center">
+        <img 
+          src="/logo.png" 
+          alt="Watch Together" 
+          className="h-16 w-auto object-contain animate-rotate-logo" 
+        />
+      </div>
+    </div>
+  );
+}
 
 export function App() {
   const { play } = useUISound();
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Detect and redirect first-time visitors to `/login` before allowing access to LandingPage or Dashboard
+  useEffect(() => {
+    if (loading) return;
+
+    const hasVisited = localStorage.getItem("hasVisitedBefore");
+    const isAuthRoute = location.pathname === "/login" || location.pathname.startsWith("/oauth");
+
+    if (!hasVisited && !isAuthRoute) {
+      localStorage.setItem("hasVisitedBefore", "true");
+      navigate("/login", { replace: true });
+    }
+  }, [loading, location.pathname, navigate]);
 
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
@@ -77,42 +110,53 @@ export function App() {
     };
   }, [play]);
 
+  const hasVisited = localStorage.getItem("hasVisitedBefore");
+  const isAuthRoute = location.pathname === "/login" || location.pathname.startsWith("/oauth");
+
+  // Gating page-renders until auth hydrates or redirect is executed
+  if (loading || (!hasVisited && !isAuthRoute)) {
+    return <GlobalLoader />;
+  }
+
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/oauth/google" element={<OAuthScreen provider="Google" />} />
-      <Route path="/oauth/microsoft" element={<OAuthScreen provider="Microsoft" />} />
+    <Suspense fallback={<GlobalLoader />}>
+      <Routes>
+        {/* Instant redirects for authenticated users to bypass fetching LandingPage or LoginPage chunks */}
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+        <Route path="/oauth/google" element={<OAuthScreen provider="Google" />} />
+        <Route path="/oauth/microsoft" element={<OAuthScreen provider="Microsoft" />} />
 
-      <Route element={<ProtectedRoute />}>
-        <Route path="/room/:roomId" element={<WatchRoomPage />} />
-        <Route path="/screen-share/:roomId" element={<WatchRoomPage />} />
-        <Route element={<AppShell />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/movies" element={<CatalogPage type="movie" />} />
-          <Route path="/movies/:id" element={<DetailPage type="movie" />} />
-          <Route path="/anime" element={<CatalogPage type="anime" />} />
-          <Route path="/anime/:id" element={<DetailPage type="anime" />} />
-          <Route path="/watchlist" element={<WatchlistPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/audio-settings" element={<SettingsPage />} />
-          <Route path="/streaming-settings" element={<SettingsPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/billing" element={<BillingPage />} />
-          <Route path="/subscription" element={<BillingPage />} />
-          <Route path="/payment-success" element={<PaymentSuccessPage />} />
-          <Route path="/payment-failed" element={<PaymentFailedPage />} />
-          <Route path="/continue-watching" element={<ContinueWatchingPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/room-expired" element={<RoomExpiredPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/room/:roomId" element={<WatchRoomPage />} />
+          <Route path="/screen-share/:roomId" element={<WatchRoomPage />} />
+          <Route element={<AppShell />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/movies" element={<CatalogPage type="movie" />} />
+            <Route path="/movies/:id" element={<DetailPage type="movie" />} />
+            <Route path="/anime" element={<CatalogPage type="anime" />} />
+            <Route path="/anime/:id" element={<DetailPage type="anime" />} />
+            <Route path="/watchlist" element={<WatchlistPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/audio-settings" element={<SettingsPage />} />
+            <Route path="/streaming-settings" element={<SettingsPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/billing" element={<BillingPage />} />
+            <Route path="/subscription" element={<BillingPage />} />
+            <Route path="/payment-success" element={<PaymentSuccessPage />} />
+            <Route path="/payment-failed" element={<PaymentFailedPage />} />
+            <Route path="/continue-watching" element={<ContinueWatchingPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/room-expired" element={<RoomExpiredPage />} />
+          </Route>
         </Route>
-      </Route>
 
-      <Route path="/404" element={<NotFoundPage />} />
-      <Route path="*" element={<Navigate to="/404" replace />} />
-    </Routes>
+        <Route path="/404" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/404" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

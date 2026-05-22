@@ -22,10 +22,44 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
+    <link rel="preload" as="image" href="/logo.png" />
     <title>Watch Together</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        body {
+          margin: 0;
+          background: #030303;
+          background-image: radial-gradient(circle at 50% 50%, #0d0404 0%, #030303 100%);
+          display: grid;
+          min-height: 100vh;
+          place-items: center;
+          overflow: hidden;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .initial-loader {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        .initial-logo {
+          height: 64px;
+          width: auto;
+          object-fit: contain;
+          animation: initial-rotate 3.5s linear infinite;
+          filter: drop-shadow(0 0 25px rgba(255, 61, 71, 0.65));
+        }
+        @keyframes initial-rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      </style>
+      <div class="initial-loader">
+        <img src="/logo.png" alt="Watch Together" class="initial-logo" />
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
