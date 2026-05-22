@@ -178,6 +178,22 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         const stream = event.streams[0] || new MediaStream([event.track]);
         console.log(`[Track Recv] Received track from ${remoteUid}: kind=${event.track.kind}, enabled=${event.track.enabled}, readyState=${event.track.readyState}, streamId=${stream.id}`);
         
+        // Optimize WebRTC playout jitter buffer for ultra-low latency audio
+        const receiver = event.receiver;
+        if (receiver) {
+          try {
+            if ("jitterBufferTarget" in receiver) {
+              (receiver as any).jitterBufferTarget = 0; // 0ms target (low latency)
+              console.log(`[WebRTC] Set jitterBufferTarget to 0ms for ${remoteUid} (${event.track.kind})`);
+            } else if ("playoutDelayHint" in receiver) {
+              (receiver as any).playoutDelayHint = 0; // 0 seconds target
+              console.log(`[WebRTC] Set playoutDelayHint to 0s for ${remoteUid} (${event.track.kind})`);
+            }
+          } catch (e) {
+            console.warn("[WebRTC] Failed to set receiver delay hint:", e);
+          }
+        }
+
         event.track.onended = () => {
           console.log(`[Track Ended] Track ${event.track.id} (${event.track.kind}) ended for peer ${remoteUid}`);
           setRemoteStreams((current) => {
@@ -318,9 +334,11 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
         echoCancellation: true,
         noiseSuppression: noiseSuppressionEnabled,
-        autoGainControl: true
+        autoGainControl: true,
+        latency: 0,
+        channelCount: 1
       }
-    });
+    } as any);
     voiceStreamRef.current = stream;
     setVoiceStream(stream);
     addLocalStream(stream);
