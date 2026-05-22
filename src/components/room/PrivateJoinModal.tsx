@@ -55,7 +55,7 @@ export function PrivateJoinModal({ open, room, onClose, onSuccess }: PrivateJoin
               setError("");
             }}
             placeholder="ENTER ACCESS CODE"
-            className="h-12 w-full rounded-lg border border-white/10 bg-white/8 px-4 text-center font-display text-2xl font-black tracking-[0.2em] text-white outline-none focus:border-cyan"
+            className="h-12 w-full rounded-lg border border-white/10 bg-white/8 px-2 sm:px-4 text-center font-display text-2xl font-black tracking-[0.2em] text-white outline-none focus:border-cyan placeholder:text-xs sm:placeholder:text-sm placeholder:tracking-normal sm:placeholder:tracking-[0.1em] placeholder:text-neutral-500"
             required
             autoFocus
           />

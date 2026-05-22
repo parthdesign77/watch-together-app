@@ -21,7 +21,7 @@ export function SearchOverlay() {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search movies, anime, friends watching..."
-        className="h-9 min-w-0 flex-1 bg-transparent px-1 text-base md:text-sm text-snow outline-none placeholder:text-muted"
+        className="h-9 min-w-0 flex-1 bg-transparent px-1 text-base md:text-sm text-snow outline-none placeholder:text-muted placeholder:text-xs md:placeholder:text-sm"
       />
       {query ? (
         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setQuery("")} aria-label="Clear search">
