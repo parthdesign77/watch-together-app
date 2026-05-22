@@ -92,6 +92,10 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const createPeer = useCallback(
     (remoteUid: string) => {
       if (!roomId || !uid) throw new Error("Missing room or user for peer setup.");
+      if (!remoteUid || remoteUid === "undefined") {
+        console.warn(`[WebRTC] Cannot create PeerConnection for invalid/undefined remote user: ${remoteUid}`);
+        return null;
+      }
       if (peers.current[remoteUid]) return peers.current[remoteUid];
 
       console.log(`[WebRTC] Creating PeerConnection for remote user: ${remoteUid}`);
@@ -225,7 +229,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
   const broadcastOffers = useCallback(async () => {
     if (!uid) return;
-    const remotes = participantsRef.current.filter((participant) => participant.uid !== uid);
+    const remotes = participantsRef.current.filter(
+      (participant) => participant.uid && participant.uid !== "undefined" && participant.uid !== uid
+    );
     await Promise.all(
       remotes.map(async (participant) => {
         // Enforce signaling collision logic:
@@ -235,6 +241,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           return;
         }
         const peer = createPeer(participant.uid);
+        if (!peer) return;
         if (peer.connectionState === "connected" || peer.connectionState === "connecting") {
           console.log(`[WebRTC] Skip initiating offer to ${participant.uid} because connection state is: ${peer.connectionState}`);
           return;
@@ -546,7 +553,14 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             return;
           }
 
+          if (!signal.from || signal.from === "undefined") {
+            console.warn("[WebRTC] Received signal from invalid/undefined sender:", signal.from);
+            return;
+          }
+
           const peer = createPeer(signal.from);
+          if (!peer) return;
+
           const neg = negotiationState.current[signal.from] || { makingOffer: false, ignoreOffer: false };
 
           void (async () => {
@@ -625,6 +639,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
   // Synchronize peer connections and remote streams with current participants
   const participantsKey = participants
+    .filter((p) => p.uid && p.uid !== "undefined")
     .map((p) => `${p.uid}:${p.joinedAt}`)
     .sort()
     .join(",");
@@ -632,10 +647,27 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   useEffect(() => {
     if (!uid) return;
 
-    const currentRemoteUids = new Set(participants.map((p) => p.uid).filter((id) => id !== uid));
+    const currentRemoteUids = new Set(
+      participants
+        .map((p) => p.uid)
+        .filter((id) => id && id !== "undefined" && id !== uid)
+    );
 
     // Close and clean up connections for participants who left or rejoined (joinedAt changed)
     Object.keys(peers.current).forEach((remoteUid) => {
+      // Guard against invalid key in the peers map
+      if (!remoteUid || remoteUid === "undefined") {
+        console.warn(`[WebRTC] Cleaning up peer connection for invalid key: ${remoteUid}`);
+        try {
+          peers.current[remoteUid].close();
+        } catch (e) {}
+        delete peers.current[remoteUid];
+        delete candidateQueue.current[remoteUid];
+        delete negotiationState.current[remoteUid];
+        delete peerJoinedAt.current[remoteUid];
+        return;
+      }
+
       const participant = participants.find((p) => p.uid === remoteUid);
       const wasRejoined = participant && peerJoinedAt.current[remoteUid] !== participant.joinedAt;
 
@@ -653,10 +685,18 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     });
 
     // Clean up corresponding remote streams
-    setRemoteStreams((current) => current.filter((item) => currentRemoteUids.has(item.uid) && peerJoinedAt.current[item.uid] !== undefined));
+    setRemoteStreams((current) =>
+      current.filter(
+        (item) =>
+          item.uid &&
+          item.uid !== "undefined" &&
+          currentRemoteUids.has(item.uid) &&
+          peerJoinedAt.current[item.uid] !== undefined
+      )
+    );
 
     // Track the active peer joinedAt timestamps
-    const remotesToConnect = participants.filter((p) => p.uid !== uid);
+    const remotesToConnect = participants.filter((p) => p.uid && p.uid !== "undefined" && p.uid !== uid);
     remotesToConnect.forEach((p) => {
       peerJoinedAt.current[p.uid] = p.joinedAt;
     });
