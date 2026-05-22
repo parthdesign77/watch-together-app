@@ -125,7 +125,7 @@ export function DashboardPage() {
                 value={customUrl}
                 onChange={(event) => setCustomUrl(event.target.value)}
                 placeholder="YouTube, local MP4 file, HLS stream..."
-                className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-base md:text-sm text-white outline-none focus:border-[#ff3d47] transition-all duration-300 placeholder-neutral-500"
+                className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-base md:text-sm text-white outline-none focus:border-[#ff3d47] transition-all duration-300 placeholder-neutral-500"
               />
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button className="w-full bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 font-bold flex items-center justify-center gap-2 border-none shadow-glow-sm" onClick={() => handleStartRoomClick()}>
@@ -159,7 +159,7 @@ export function DashboardPage() {
                       <div className="flex items-center gap-2">
                         <p className="truncate text-sm font-bold text-white group-hover:text-[#ff3d47] transition-colors">{room.roomName}</p>
                         {room.isPrivate && (
-                          <Badge className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] px-1 py-0.2 rounded uppercase font-bold">
+                          <Badge className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] px-1 py-0.2 rounded uppercase font-bold flex-shrink-0">
                             Private
                           </Badge>
                         )}
@@ -190,7 +190,7 @@ export function DashboardPage() {
 
                     <Button
                       size="sm"
-                      className="bg-neutral-800 hover:bg-[#ff3d47] text-white hover:text-white rounded-xl h-9 px-3 font-extrabold text-xs transition-all duration-300 border border-white/5"
+                      className="bg-neutral-800 hover:bg-[#ff3d47] text-white hover:text-white rounded-xl h-9 px-3 font-extrabold text-xs transition-all duration-300 border border-white/5 flex-shrink-0"
                       onClick={() => {
                         play("click");
                         if ((room.roomType === "private" || room.isPrivate) && room.hostId !== profile?.uid) {
