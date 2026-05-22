@@ -292,6 +292,10 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                       : "border-white/10 hover:border-white/20"
                   }`}
                 >
+                  {isSpeaking && (
+                    <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+                  )}
+
                   <AnimatePresence mode="wait">
                     {screenFeed ? (
                       <motion.div

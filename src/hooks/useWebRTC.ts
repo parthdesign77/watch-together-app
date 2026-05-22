@@ -54,6 +54,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const negotiationPending = useRef<Record<string, boolean>>({});
   const negotiationState = useRef<Record<string, { makingOffer: boolean; ignoreOffer: boolean }>>({});
   const mutedRef = useRef(false);
+  const lastAudioDeviceId = useRef<string | undefined>(undefined);
+  const lastNoiseSuppression = useRef<boolean>(false);
 
   const participantsRef = useRef(participants);
   useEffect(() => {
@@ -106,9 +108,37 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       negotiationPending.current[remoteUid] = false;
 
       localStreams.current.forEach((stream) => {
-        stream.getTracks().forEach((track) => {
-          console.log(`[Track Add] Adding local track: kind=${track.kind}, enabled=${track.enabled}, readyState=${track.readyState} to peer ${remoteUid}`);
-          peer.addTrack(track, stream);
+        stream.getTracks().forEach(async (track) => {
+          const senders = peer.getSenders();
+          const alreadyAdded = senders.some((s) => s.track?.id === track.id);
+          if (!alreadyAdded) {
+            console.log(`[Track Add] Adding local track: kind=${track.kind}, enabled=${track.enabled}, readyState=${track.readyState} to peer ${remoteUid}`);
+            const sender = peer.addTrack(track, stream);
+            
+            // Apply screen-share bitrate constraints to new peers
+            if (sender && track.kind === "video" && stream === screenStreamRef.current) {
+              try {
+                const params = sender.getParameters();
+                if (!params.encodings) {
+                  params.encodings = [{}];
+                }
+                const ourParticipant = participantsRef.current.find(p => p.uid === uid);
+                const myPlan = ourParticipant?.subscriptionPlan || "free";
+                
+                let maxBitrate = 800000;
+                if (myPlan === "premium") {
+                  maxBitrate = 6000000;
+                } else if (myPlan === "standard") {
+                  maxBitrate = 2500000;
+                }
+                params.encodings[0].maxBitrate = maxBitrate;
+                await sender.setParameters(params);
+                console.log(`[WebRTC] Enforced screen-share maxBitrate: ${maxBitrate} bps for new peer ${remoteUid}`);
+              } catch (bitrateErr) {
+                console.warn("[WebRTC] Failed to set screen share bitrate parameters on new peer:", bitrateErr);
+              }
+            }
+          }
         });
       });
 
@@ -284,23 +314,47 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   }, [createPeer, sendSignal, uid]);
 
   const addLocalStream = useCallback(
-    (stream: MediaStream) => {
+    (stream: MediaStream, plan?: string) => {
       localStreams.current = [...localStreams.current.filter((item) => item.id !== stream.id), stream];
-      Object.values(peers.current).forEach((peer) => {
+      
+      const ourParticipant = participantsRef.current.find(p => p.uid === uid);
+      const myPlan = plan || ourParticipant?.subscriptionPlan || "free";
+
+      Object.values(peers.current).forEach(async (peer) => {
         const senders = peer.getSenders();
-        stream.getTracks().forEach((track) => {
-          const alreadyAdded = senders.some((s) => s.track?.id === track.id);
-          if (!alreadyAdded) {
+        for (const track of stream.getTracks()) {
+          let sender = senders.find((s) => s.track?.id === track.id);
+          if (!sender) {
             try {
-              peer.addTrack(track, stream);
+              sender = peer.addTrack(track, stream);
             } catch (e) {
               console.warn("Error adding track to peer:", e);
             }
           }
-        });
+          
+          if (sender && track.kind === "video" && stream === screenStreamRef.current) {
+            try {
+              const params = sender.getParameters();
+              if (!params.encodings) {
+                params.encodings = [{}];
+              }
+              let maxBitrate = 800000;
+              if (myPlan === "premium") {
+                maxBitrate = 6000000;
+              } else if (myPlan === "standard") {
+                maxBitrate = 2500000;
+              }
+              params.encodings[0].maxBitrate = maxBitrate;
+              await sender.setParameters(params);
+              console.log(`[WebRTC] Enforced screen-share maxBitrate: ${maxBitrate} bps for peer`);
+            } catch (bitrateErr) {
+              console.warn("[WebRTC] Failed to set screen share bitrate parameters:", bitrateErr);
+            }
+          }
+        }
       });
     },
-    []
+    [uid]
   );
 
   const removeLocalStream = useCallback(
@@ -322,7 +376,31 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     []
   );
 
+  // Warm up permissions and query media device capabilities on mount
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.mediaDevices) {
+      navigator.mediaDevices.enumerateDevices()
+        .then((devices) => {
+          console.log("[WebRTC] Devices warmed up/enumerated successfully:", devices.length);
+        })
+        .catch((err) => {
+          console.warn("[WebRTC] Devices warming failed:", err);
+        });
+    }
+  }, []);
+
   const startVoice = useCallback(async () => {
+    // Prevent duplicate initialization: reuse track if audio settings did not change and track is live
+    const deviceChanged = lastAudioDeviceId.current !== audioInputDeviceId || lastNoiseSuppression.current !== noiseSuppressionEnabled;
+    if (!deviceChanged && voiceStreamRef.current && voiceStreamRef.current.getAudioTracks().some(t => t.readyState === "live")) {
+      console.log("[WebRTC] Reusing active voice track");
+      setMuted(false);
+      return;
+    }
+    
+    lastAudioDeviceId.current = audioInputDeviceId;
+    lastNoiseSuppression.current = noiseSuppressionEnabled;
+
     if (processedVoiceStreamRef.current) {
       processedVoiceStreamRef.current.getTracks().forEach((track) => track.stop());
       removeLocalStream(processedVoiceStreamRef.current);
@@ -529,25 +607,66 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   }, [audioInputDeviceId, noiseSuppressionEnabled, startVoice]);
 
   const startCamera = useCallback(async (plan?: string) => {
-    console.log(`[WebRTC] Starting camera with plan tier: ${plan || "free"}`);
-    let videoConstraints: MediaTrackConstraints = {
-      width: { ideal: 640 },
-      height: { ideal: 480 },
-      frameRate: { ideal: 24, max: 30 }
-    };
+    // Prevent duplicate camera initialization
+    if (cameraStreamRef.current && cameraStreamRef.current.getVideoTracks().some(t => t.readyState === "live")) {
+      console.log("[WebRTC] Reusing active camera track");
+      return cameraStreamRef.current;
+    }
 
-    if (plan === "premium") {
-      videoConstraints = {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        frameRate: { ideal: 30, max: 60 }
-      };
-    } else if (plan === "standard") {
-      videoConstraints = {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        frameRate: { ideal: 30, max: 60 }
-      };
+    const ourParticipant = participantsRef.current.find((p) => p.uid === uid);
+    const connectionQuality = ourParticipant?.connectionQuality || "excellent";
+
+    console.log(`[WebRTC] Starting camera. Plan: ${plan || "free"}, connectionQuality: ${connectionQuality}`);
+    
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+    let videoConstraints: MediaTrackConstraints;
+
+    if (isMobileDevice) {
+      if (connectionQuality === "poor") {
+        console.log("[WebRTC] Mobile & Poor connection quality: enforcing low-latency 480p fallback");
+        videoConstraints = {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 20, max: 24 }
+        };
+      } else {
+        if (plan === "premium" || plan === "standard") {
+          console.log("[WebRTC] Mobile with stable connection and premium/standard plan: scaling up to 720p constraints");
+          videoConstraints = {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 24, max: 30 }
+          };
+        } else {
+          console.log("[WebRTC] Mobile free plan: capped at 480p");
+          videoConstraints = {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            frameRate: { ideal: 24, max: 30 }
+          };
+        }
+      }
+    } else {
+      // Desktop clients
+      if (plan === "premium") {
+        videoConstraints = {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30, max: 60 }
+        };
+      } else if (plan === "standard") {
+        videoConstraints = {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 30 }
+        };
+      } else {
+        videoConstraints = {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 24, max: 30 }
+        };
+      }
     }
 
     let stream: MediaStream;
@@ -579,9 +698,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     cameraStreamRef.current = stream;
     setCameraStream(stream);
 
-    addLocalStream(stream);
+    addLocalStream(stream, plan);
     return stream;
-  }, [addLocalStream]);
+  }, [addLocalStream, uid]);
 
   const stopCamera = useCallback(() => {
     console.log("[WebRTC] Stopping camera stream...");
@@ -610,13 +729,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       throw new Error("Screen sharing is not supported by your current browser or mobile device. Please use a modern desktop browser (Chrome, Firefox, Safari) or a supporting mobile browser.");
     }
     console.log(`[WebRTC] Starting screen share with mode: ${mode}, plan tier: ${plan || "free"}`);
-    let videoConstraints: MediaTrackConstraints = {
-      displaySurface: mode === "entire-screen" ? "monitor" : "window",
-      width: { ideal: 854 },
-      height: { ideal: 480 },
-      frameRate: { ideal: 15, max: 30 }
-    };
-
+    
+    let videoConstraints: MediaTrackConstraints;
     if (plan === "premium") {
       videoConstraints = {
         displaySurface: mode === "entire-screen" ? "monitor" : "window",
@@ -629,7 +743,14 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         displaySurface: mode === "entire-screen" ? "monitor" : "window",
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        frameRate: { ideal: 30, max: 60 }
+        frameRate: { ideal: 30, max: 30 }
+      };
+    } else {
+      videoConstraints = {
+        displaySurface: mode === "entire-screen" ? "monitor" : "window",
+        width: { ideal: 854 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 15, max: 30 }
       };
     }
 

@@ -12,7 +12,13 @@ export type UISoundType =
   | "ready"
   | "fullscreen-enter"
   | "fullscreen-exit"
-  | "open-card";
+  | "open-card"
+  | "mic-mute"
+  | "mic-unmute"
+  | "camera-on"
+  | "camera-off"
+  | "screenshare-start"
+  | "screenshare-stop";
 
 // Global, module-level singleton AudioContext to prevent browser limit crashes and optimize responsiveness
 let globalAudioCtx: AudioContext | null = null;
@@ -283,6 +289,137 @@ export function useUISound() {
           playChime(0, 440, 0.04); // A4
           playChime(0.06, 554.37, 0.04); // C#5
           playChime(0.12, 659.25, 0.05); // E5
+          break;
+        }
+        case "mic-mute": {
+          // Discord-style descending mute tone
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          const gain2 = ctx.createGain();
+
+          osc1.type = "sine";
+          osc1.frequency.setValueAtTime(440, now);
+          osc1.frequency.exponentialRampToValueAtTime(320, now + 0.08);
+          gain1.gain.setValueAtTime(0.06, now);
+          gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+
+          osc2.type = "sine";
+          osc2.frequency.setValueAtTime(320, now + 0.05);
+          osc2.frequency.exponentialRampToValueAtTime(220, now + 0.15);
+          gain2.gain.setValueAtTime(0.05, now + 0.05);
+          gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+
+          osc1.connect(gain1);
+          osc2.connect(gain2);
+          gain1.connect(ctx.destination);
+          gain2.connect(ctx.destination);
+
+          osc1.start(now);
+          osc2.start(now + 0.05);
+          osc1.stop(now + 0.08);
+          osc2.stop(now + 0.15);
+          break;
+        }
+        case "mic-unmute": {
+          // Discord-style ascending unmute tone
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          const gain2 = ctx.createGain();
+
+          osc1.type = "sine";
+          osc1.frequency.setValueAtTime(320, now);
+          osc1.frequency.exponentialRampToValueAtTime(440, now + 0.08);
+          gain1.gain.setValueAtTime(0.05, now);
+          gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+
+          osc2.type = "sine";
+          osc2.frequency.setValueAtTime(440, now + 0.05);
+          osc2.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+          gain2.gain.setValueAtTime(0.06, now + 0.05);
+          gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+
+          osc1.connect(gain1);
+          osc2.connect(gain2);
+          gain1.connect(ctx.destination);
+          gain2.connect(ctx.destination);
+
+          osc1.start(now);
+          osc2.start(now + 0.05);
+          osc1.stop(now + 0.08);
+          osc2.stop(now + 0.15);
+          break;
+        }
+        case "camera-on": {
+          // Warm ascending chime
+          const playChime = (delay: number, freq: number, vol: number) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, now + delay);
+            gain.gain.setValueAtTime(vol, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.25);
+          };
+          playChime(0, 523.25, 0.04); // C5
+          playChime(0.05, 659.25, 0.04); // E5
+          playChime(0.1, 783.99, 0.05); // G5
+          break;
+        }
+        case "camera-off": {
+          // Warm descending chime
+          const playChime = (delay: number, freq: number, vol: number) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, now + delay);
+            gain.gain.setValueAtTime(vol, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.25);
+          };
+          playChime(0, 783.99, 0.05); // G5
+          playChime(0.05, 659.25, 0.04); // E5
+          playChime(0.1, 523.25, 0.04); // C5
+          break;
+        }
+        case "screenshare-start": {
+          // futuristic tech dual beep
+          const playPulse = (delay: number, freq: number) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, now + delay);
+            gain.gain.setValueAtTime(0.05, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.15);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.15);
+          };
+          playPulse(0, 880); // A5
+          playPulse(0.07, 1318.51); // E6
+          break;
+        }
+        case "screenshare-stop": {
+          // futuristic descending chime
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(1318.51, now);
+          osc.frequency.exponentialRampToValueAtTime(440, now + 0.25);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.25);
           break;
         }
       }

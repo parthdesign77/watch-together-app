@@ -67,6 +67,10 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                   </div>
                 )}
                 
+                {p.isSpeaking && (
+                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+                )}
+
                 {/* Name Tag and mic overlay */}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 px-3 flex items-center justify-between gap-1.5 z-10">
                   <p className={`truncate ${textClass} font-black text-white/95 max-w-[75%]`}>{p.name}</p>
@@ -161,6 +165,10 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
               >
                 <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover" />
                 
+                {isSpeaking && (
+                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+                )}
+
                 {/* Overlay Name Tag */}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-1.5 flex items-center justify-between gap-1 z-10">
                   <p className="truncate text-[8px] sm:text-[10px] font-black text-white max-w-[70%]">
@@ -236,6 +244,10 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                   </div>
                 )}
                 
+                {p.isSpeaking && (
+                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+                )}
+
                 {/* Name Tag and mic overlay */}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2 px-2.5 flex items-center justify-between gap-1 z-10">
                   <p className={`truncate ${floatTextClass} font-black text-white/95 max-w-[75%]`}>{p.name}</p>
@@ -276,23 +288,39 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
   return (
     <section className="relative overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl min-h-[520px]">
       <div className={`grid h-full min-h-[520px] gap-3 p-3 ${spotlight ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
-        {feeds.map((feed) => (
-          <article key={feed.id} className="relative overflow-hidden rounded-lg border border-white/10 bg-elevated">
-            <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full min-h-[240px] w-full object-cover" />
-            <div className="absolute left-3 top-3 flex items-center gap-2">
-              <Badge tone="red">
-                <Video className="h-3.5 w-3.5" />
-                Camera
-              </Badge>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 bg-gradient-to-t from-black/90 to-transparent p-3">
-              <p className="truncate font-bold">{feed.name}</p>
-              <Button variant="ghost" size="icon" onClick={() => document.documentElement.requestFullscreen?.()} aria-label="Fullscreen camera grid">
-                <Maximize2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </article>
-        ))}
+        {feeds.map((feed) => {
+          const p = participants.find((part) => feed.id.startsWith(part.uid));
+          const isSpeaking = p?.isSpeaking;
+          return (
+            <article 
+              key={feed.id} 
+              className={`participant-card relative overflow-hidden rounded-lg border bg-elevated transition-[border-color,box-shadow] duration-200 ${
+                isSpeaking 
+                  ? "speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
+                  : "border-white/10"
+              }`}
+            >
+              <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full min-h-[240px] w-full object-cover" />
+              
+              {isSpeaking && (
+                <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+              )}
+
+              <div className="absolute left-3 top-3 flex items-center gap-2">
+                <Badge tone="red">
+                  <Video className="h-3.5 w-3.5" />
+                  Camera
+                </Badge>
+              </div>
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 bg-gradient-to-t from-black/90 to-transparent p-3">
+                <p className="truncate font-bold">{feed.name}</p>
+                <Button variant="ghost" size="icon" onClick={() => document.documentElement.requestFullscreen?.()} aria-label="Fullscreen camera grid">
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

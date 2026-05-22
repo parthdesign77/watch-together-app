@@ -31,7 +31,8 @@ import {
   endRoom,
   useRoomMessages,
   approveJoinRequest,
-  rejectJoinRequest
+  rejectJoinRequest,
+  cancelJoinRequest
 } from "../hooks/useRooms";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { useUiStore } from "../store/uiStore";
@@ -41,6 +42,145 @@ interface ActivityLogItem {
   id: string;
   text: string;
   timestamp: number;
+}
+
+function AwaitingApprovalScreen({
+  room,
+  profile,
+  myRequest,
+  onTimeout
+}: {
+  room: any;
+  profile: any;
+  myRequest: any;
+  onTimeout: () => void;
+}) {
+  const requestedAt = myRequest?.requestedAt || Date.now();
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const elapsed = Math.floor((Date.now() - requestedAt) / 1000);
+    return Math.max(0, 180 - elapsed);
+  });
+  const [isTimedOut, setIsTimedOut] = useState(false);
+  const navigate = useNavigate();
+  const { play } = useUISound();
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const currentElapsed = Math.floor((Date.now() - requestedAt) / 1000);
+      const remaining = Math.max(0, 180 - currentElapsed);
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        setIsTimedOut(true);
+        clearInterval(timer);
+        onTimeout();
+        cancelJoinRequest(room.id, profile.uid).catch(console.error);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [requestedAt, room.id, profile.uid, onTimeout]);
+
+  const handleCancel = async () => {
+    play("click");
+    try {
+      await cancelJoinRequest(room.id, profile.uid);
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Failed to cancel join request:", err);
+    }
+  };
+
+  const hostParticipant = room.participants?.[room.hostId];
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  if (isTimedOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#090909]">
+        <div className="glass rounded-[28px] p-8 border border-white/5 bg-[#111111] max-w-md w-full text-center shadow-2xl relative overflow-hidden animate-fade-in">
+          <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#ff3d47]/20 rounded-full blur-[80px]" />
+          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[#ff3d47]/20 rounded-full blur-[80px]" />
+          
+          <div className="relative z-10 flex flex-col items-center">
+            <ShieldAlert className="h-16 w-16 text-[#ff3d47] mb-6 drop-shadow-[0_0_15px_rgba(255,61,71,0.4)]" />
+            <h1 className="font-display text-2xl font-black text-white mb-2">Request Timed Out</h1>
+            <p className="mt-2 text-sm text-neutral-400 mb-6 leading-relaxed">
+              The host didn't respond to your join request in time. They might be away or busy. Please try again later.
+            </p>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="w-full bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 px-6 font-bold border-none transition-all duration-300 shadow-[0_4px_20px_rgba(255,61,71,0.3)] cursor-pointer"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 bg-[#090909]">
+      <div className="glass rounded-[28px] p-8 border border-white/5 bg-[#111111] max-w-md w-full text-center shadow-2xl relative overflow-hidden animate-fade-in">
+        <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#ff3d47]/20 rounded-full blur-[80px]" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[#ff3d47]/20 rounded-full blur-[80px]" />
+
+        <div className="relative z-10 flex flex-col items-center">
+          <img 
+            src="/logo.png" 
+            alt="Watch Together" 
+            className="h-20 w-auto object-contain mb-6 animate-rotate-logo filter drop-shadow-[0_0_20px_rgba(255,61,71,0.2)]" 
+          />
+          
+          <h1 className="font-display text-2xl font-black text-white mb-1">Awaiting Host Approval</h1>
+          <p className="text-xs text-neutral-500 uppercase tracking-widest font-bold mb-6">
+            Room Name: <span className="text-neutral-300 normal-case">{room.roomName}</span>
+          </p>
+
+          {hostParticipant && (
+            <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl p-4 w-full mb-6 text-left">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-sm border border-white/10 shadow-inner"
+                style={{ backgroundColor: hostParticipant.avatarColor || "#ff3d47" }}
+              >
+                {hostParticipant.avatar ? (
+                  <img src={hostParticipant.avatar} alt={hostParticipant.name} className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  hostParticipant.name.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Party Host</p>
+                <p className="text-sm font-extrabold text-white truncate">{hostParticipant.name}</p>
+                <p className="text-[11px] text-[#ff3d47] font-semibold">Hosting on {hostParticipant.subscriptionPlan?.toUpperCase()} plan</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col items-center gap-2 mb-8">
+            <div className="inline-flex items-center gap-2.5 rounded-full px-4 py-2 border border-white/5 bg-white/5 backdrop-blur-md text-neutral-300">
+              <span className="w-2 h-2 rounded-full bg-[#ff3d47] animate-ping" />
+              <span className="text-xs font-semibold tracking-wider">Estimated Queue: {formatTime(timeLeft)}</span>
+            </div>
+            <p className="text-[11px] text-neutral-500 italic leading-relaxed">
+              Request automatically cancels if host doesn't respond before countdown ends.
+            </p>
+          </div>
+
+          <button
+            onClick={handleCancel}
+            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl h-11 px-6 font-bold transition-all duration-300 cursor-pointer"
+          >
+            Cancel Entry Request
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function WatchRoomPage() {
@@ -110,10 +250,12 @@ export function WatchRoomPage() {
   const [deviceSettingsOpen, setDeviceSettingsOpen] = useState(false);
   
   const [joined, setJoined] = useState(false);
+  const [isRequestTimedOut, setIsRequestTimedOut] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
   const [mobileParticipantsOpen, setMobileParticipantsOpen] = useState(false);
+
 
   useEffect(() => {
     const handleResize = () => {
@@ -355,7 +497,7 @@ export function WatchRoomPage() {
   }, [room, navigate, pushToast]);
 
   useEffect(() => {
-    if (!room || !profile || joined) return;
+    if (!room || !profile || joined || isRequestTimedOut) return;
     const isHostUser = room.hostId === profile.uid;
     const isPart = room.participants && !!room.participants[profile.uid];
 
@@ -369,7 +511,7 @@ export function WatchRoomPage() {
       setJoined(true);
       pushToast({ title: "Joined synchronized room", description: "Playback, chat history, and participant state restored.", type: "success" });
     }
-  }, [joined, profile, pushToast, room]);
+  }, [joined, profile, pushToast, room, isRequestTimedOut]);
 
   useEffect(() => {
     if (!room || !profile || !joined || webRTC.voiceStream || voicePrompted.current) return;
@@ -577,44 +719,35 @@ export function WatchRoomPage() {
     const myRequest = room.joinRequests?.[profile.uid];
     const requestStatus = myRequest?.status || "pending";
 
+    if (requestStatus === "pending") {
+      return (
+        <AwaitingApprovalScreen
+          room={room}
+          profile={profile}
+          myRequest={myRequest}
+          onTimeout={() => setIsRequestTimedOut(true)}
+        />
+      );
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#090909]">
-        <div className="glass rounded-[28px] p-8 border border-white/5 bg-[#111111] max-w-md text-center shadow-2xl relative overflow-hidden">
+        <div className="glass rounded-[28px] p-8 border border-white/5 bg-[#111111] max-w-md text-center shadow-2xl relative overflow-hidden animate-fade-in">
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#ff3d47]/20 rounded-full blur-[80px]" />
           <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[#ff3d47]/20 rounded-full blur-[80px]" />
 
           <div className="relative z-10">
-            {requestStatus === "pending" ? (
-              <>
-                <img 
-                  src="/logo.png" 
-                  alt="Watch Together" 
-                  className="h-20 w-auto object-contain mx-auto mb-6 animate-rotate-logo" 
-                />
-                <h1 className="font-display text-2xl font-black text-white mb-2">Awaiting Host Approval</h1>
-                <p className="mt-2 text-sm text-neutral-400 mb-6">
-                  Your request to join the room is pending. Please wait for the host to accept your entry.
-                </p>
-                <div className="inline-flex items-center gap-2.5 rounded-full px-4 py-2 border border-white/5 bg-white/5 backdrop-blur-md text-neutral-300">
-                  <span className="w-2 h-2 rounded-full bg-[#ff3d47] animate-ping" />
-                  <span className="text-xs font-semibold tracking-wider">Awaiting response...</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <ShieldAlert className="h-16 w-16 text-[#ff3d47] mx-auto mb-6 drop-shadow-[0_0_15px_rgba(255,61,71,0.4)]" />
-                <h1 className="font-display text-2xl font-black text-white mb-2">Request Rejected</h1>
-                <p className="mt-2 text-sm text-neutral-400 mb-6">
-                  The host has declined your request to join this private watch party.
-                </p>
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="w-full bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 px-6 font-bold border-none transition-all duration-300 shadow-[0_4px_20px_rgba(255,61,71,0.3)]"
-                >
-                  Return to Dashboard
-                </button>
-              </>
-            )}
+            <ShieldAlert className="h-16 w-16 text-[#ff3d47] mx-auto mb-6 drop-shadow-[0_0_15px_rgba(255,61,71,0.4)]" />
+            <h1 className="font-display text-2xl font-black text-white mb-2">Request Rejected</h1>
+            <p className="mt-2 text-sm text-neutral-400 mb-6">
+              The host has declined your request to join this private watch party.
+            </p>
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="w-full bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 px-6 font-bold border-none transition-all duration-300 shadow-[0_4px_20px_rgba(255,61,71,0.3)] cursor-pointer"
+            >
+              Return to Dashboard
+            </button>
           </div>
         </div>
       </div>
@@ -881,7 +1014,7 @@ export function WatchRoomPage() {
       <div
         onMouseEnter={() => cinemaMode && setHeaderHovered(true)}
         onMouseLeave={() => cinemaMode && setHeaderHovered(false)}
-        className={`transition-all duration-500 ease-in-out z-40 ${
+        className={`gpu-accelerated transition-all duration-500 ease-in-out z-40 ${
           cinemaMode
             ? `fixed top-0 left-0 right-0 p-5 bg-[#090909]/95 backdrop-blur-lg border-b border-white/5 transform shadow-2xl ${
                 headerHovered ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"
@@ -922,12 +1055,12 @@ export function WatchRoomPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex flex-col xl:flex-row gap-5 flex-1 min-h-0 transition-all duration-500">
+      <div className="gpu-accelerated flex flex-col xl:flex-row gap-5 flex-1 min-h-0 transition-all duration-500">
         
         {/* Widescreen Video Stage Container */}
         <div
           ref={mediaContainerRef}
-          className={`flex-1 min-h-0 flex flex-col gap-4 relative transition-all duration-500 ${
+          className={`gpu-accelerated flex-1 min-h-0 flex flex-col gap-4 relative transition-all duration-500 ${
             isFullscreen ? "p-5 bg-[#090909] w-full h-full justify-between" : ""
           }`}
         >

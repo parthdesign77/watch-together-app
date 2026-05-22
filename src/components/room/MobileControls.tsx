@@ -148,7 +148,7 @@ export function MobileControls({
         <button
           id="micBtn"
           onClick={() => {
-            play("click");
+            play(muted ? "mic-unmute" : "mic-mute");
             onToggleMute();
           }}
           className={`h-12 w-12 rounded-full flex flex-col items-center justify-center border transition-all active:scale-90 cursor-pointer ${
@@ -164,7 +164,7 @@ export function MobileControls({
         {/* 2. Camera Control */}
         <button
           onClick={() => {
-            play("click");
+            play(hasCameraStream ? "camera-off" : "camera-on");
             onToggleCamera();
           }}
           className={`h-12 w-12 rounded-full flex items-center justify-center border transition-all active:scale-90 cursor-pointer ${

@@ -243,7 +243,7 @@ export function RoomControls({
                 muted ? "bg-[#ff3d47]/20 border-[#ff3d47]/30 text-[#ff3d47]" : "bg-neutral-800 hover:bg-neutral-700 text-white"
               }`}
               onClick={() => {
-                play("click");
+                play(muted ? "mic-unmute" : "mic-mute");
                 onToggleMute();
               }}
               title={muted ? "Unmute Mic" : "Mute Mic"}
@@ -261,7 +261,7 @@ export function RoomControls({
                 hasCameraStream ? "bg-[#ff3d47]/20 border-[#ff3d47]/30 text-[#ff3d47]" : "bg-neutral-800 hover:bg-neutral-700 text-white"
               }`}
               onClick={() => {
-                play("click");
+                play(hasCameraStream ? "camera-off" : "camera-on");
                 onToggleCamera();
               }}
               title={hasCameraStream ? "Turn Off Camera" : "Turn On Camera"}
@@ -279,7 +279,7 @@ export function RoomControls({
                 hasScreenStream ? "bg-[#ff3d47]/20 border-[#ff3d47]/30 text-[#ff3d47]" : "bg-neutral-800 hover:bg-neutral-700 text-white"
               }`}
               onClick={() => {
-                play("click");
+                play(hasScreenStream ? "screenshare-stop" : "screenshare-start");
                 if (hasScreenStream) {
                   onStopScreen();
                 } else {

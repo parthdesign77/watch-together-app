@@ -211,6 +211,15 @@ export async function rejectJoinRequest(roomId: string, userId: string) {
   });
 }
 
+export async function cancelJoinRequest(roomId: string, userId: string) {
+  const roomRef = doc(db, "rooms", roomId);
+  await updateDoc(roomRef, {
+    [`joinRequests.${userId}`]: deleteField(),
+    updatedAt: Date.now(),
+    updatedAtServer: serverTimestamp()
+  });
+}
+
 export async function joinRoomByCode(code: string, profile: UserProfile) {
   const rooms = await getDocs(query(collection(db, "rooms"), where("code", "==", code.trim().toUpperCase()), limit(1)));
   if (rooms.empty) {
