@@ -46,8 +46,10 @@ function ShellLink({ href, label, icon: Icon, onClick }: (typeof navItems)[numbe
       to={href}
       onClick={onClick}
       className={({ isActive }) =>
-        `flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
-          isActive ? "bg-white/12 text-snow shadow-glow" : "text-muted hover:bg-white/8 hover:text-snow"
+        `flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition border ${
+          isActive 
+            ? "bg-[#ff3d47]/10 text-snow border-[#ff3d47]/80" 
+            : "border-transparent text-muted hover:bg-white/8 hover:text-snow"
         }`
       }
     >
@@ -177,7 +179,7 @@ export function AppShell() {
       </div>
 
       {/* Desktop Sidebar (Persistent) */}
-      <aside className="fixed bottom-0 left-0 top-16 z-25 w-72 border-r border-white/10 bg-ink/80 p-4 hidden lg:block backdrop-blur-2xl">
+      <aside className="fixed bottom-0 left-0 top-16 z-25 w-72 border-r border-[#ff3d47]/20 bg-ink p-4 hidden lg:block">
         <div className="flex h-full flex-col overflow-y-auto scrollbar-none">
           <nav className="space-y-1">
             {navItems.map((item) => (
@@ -223,7 +225,7 @@ export function AppShell() {
             />
             {/* Drawer */}
             <motion.aside
-              className="fixed bottom-0 left-0 top-0 z-50 w-72 max-w-[85vw] border-r border-white/10 bg-ink/95 p-4 pb-6 backdrop-blur-2xl lg:hidden flex flex-col"
+              className="fixed bottom-0 left-0 top-0 z-50 w-72 max-w-[85vw] border-r border-[#ff3d47]/20 bg-ink p-4 pb-6 lg:hidden flex flex-col"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
