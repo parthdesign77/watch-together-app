@@ -53,6 +53,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const candidateQueue = useRef<Record<string, RTCIceCandidateInit[]>>({});
   const negotiationPending = useRef<Record<string, boolean>>({});
   const negotiationState = useRef<Record<string, { makingOffer: boolean; ignoreOffer: boolean }>>({});
+  const negotiateHandlers = useRef<Record<string, () => Promise<void>>>({});
   const mutedRef = useRef(false);
   const lastAudioDeviceId = useRef<string | undefined>(undefined);
   const lastNoiseSuppression = useRef<boolean>(false);
@@ -180,6 +181,13 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
       const negotiate = async () => {
         try {
+          const isPolite = uid > remoteUid;
+          if (!isPolite && !peer.remoteDescription) {
+            console.log(`[Negotiation] Impolite peer skipping negotiation during initial setup.`);
+            negotiationPending.current[remoteUid] = true;
+            return;
+          }
+
           console.log(`[Negotiation] Starting negotiation for peer ${remoteUid}, signalingState=${peer.signalingState}`);
           if (peer.signalingState !== "stable") {
             console.log(`[Negotiation] Peer signaling state is ${peer.signalingState}, queueing negotiation.`);
@@ -210,6 +218,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           negotiationState.current[remoteUid].makingOffer = false;
         }
       };
+
+      negotiateHandlers.current[remoteUid] = negotiate;
 
       peer.onsignalingstatechange = () => {
         console.log(`[Signaling] Signaling state with peer ${remoteUid} changed to: ${peer.signalingState}`);
@@ -287,6 +297,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             delete candidateQueue.current[remoteUid];
             delete negotiationState.current[remoteUid];
             delete peerJoinedAt.current[remoteUid];
+            delete negotiateHandlers.current[remoteUid];
           }
           setRemoteStreams((current) => current.filter((item) => item.uid !== remoteUid));
         }
@@ -313,7 +324,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         const peer = createPeer(participant.uid);
         if (!peer) return;
         if (peer.connectionState === "connected" || peer.connectionState === "connecting") {
-          console.log(`[WebRTC] Skip initiating offer to ${participant.uid} because connection state is: ${peer.connectionState}`);
+          const handler = negotiateHandlers.current[participant.uid];
+          if (handler) void handler();
           return;
         }
 
@@ -462,9 +474,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         console.log("[WebRTC] Mobile device detected during capture - using direct robust constraints");
         const constraints = { 
             audio: {
-                echoCancellation: false,
-                noiseSuppression: false,
-                autoGainControl: false
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
             } 
         };
         stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -955,7 +967,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             if (signal.type === "offer" && signal.sdp) {
               try {
                 const isPolite = uid > signal.from;
-                const offerCollision = neg.makingOffer || peer.signalingState !== "stable";
+                const offerCollision = neg.makingOffer || peer.signalingState === "have-local-offer";
 
                 neg.ignoreOffer = !isPolite && offerCollision;
                 if (neg.ignoreOffer) {
@@ -1024,14 +1036,15 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     if (!roomId || !uid) return;
     void updateDoc(doc(db, "rooms", roomId), {
       [`participants.${uid}.isMuted`]: muted,
-      [`participants.${uid}.isSpeaking`]: speaking
+      [`participants.${uid}.isSpeaking`]: speaking,
+      [`participants.${uid}.voiceStreamId`]: voiceStream ? voiceStream.id : null
     }).catch(() => undefined);
-  }, [muted, roomId, speaking, uid]);
+  }, [muted, roomId, speaking, uid, voiceStream]);
 
   // Synchronize peer connections and remote streams with current participants
   const participantsKey = participants
     .filter((p) => p.uid && p.uid !== "undefined")
-    .map((p) => `${p.uid}:${p.joinedAt}`)
+    .map((p) => `${p.uid}:${p.joinedAt}:${p.isCameraOn ? 1 : 0}:${p.isMuted ? 1 : 0}:${p.isScreenSharing ? 1 : 0}:${p.voiceStreamId || ""}:${p.cameraStreamId || ""}:${p.screenStreamId || ""}`)
     .sort()
     .join(",");
 
@@ -1056,6 +1069,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         delete candidateQueue.current[remoteUid];
         delete negotiationState.current[remoteUid];
         delete peerJoinedAt.current[remoteUid];
+        delete negotiateHandlers.current[remoteUid];
         return;
       }
 
@@ -1072,6 +1086,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         delete peers.current[remoteUid];
         delete candidateQueue.current[remoteUid];
         delete peerJoinedAt.current[remoteUid];
+        delete negotiateHandlers.current[remoteUid];
       }
     });
 
@@ -1103,6 +1118,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       analyserCleanup.current?.();
       localStreams.current.forEach((stream) => stream.getTracks().forEach((track) => track.stop()));
       Object.values(peers.current).forEach((peer) => peer.close());
+      negotiateHandlers.current = {};
     };
   }, []);
 

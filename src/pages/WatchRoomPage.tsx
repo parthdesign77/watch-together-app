@@ -330,6 +330,7 @@ export function WatchRoomPage() {
   const prevRoomRef = useRef<any>(null);
   
   const isExitingRef = useRef(false);
+  const requestingRef = useRef(false);
   const navigate = useNavigate();
   const pushToast = useUiStore((state) => state.pushToast);
   
@@ -505,9 +506,13 @@ export function WatchRoomPage() {
 
     if (!isHostUser && !isPart) {
       const request = room.joinRequests?.[profile.uid];
-      if (!request) {
-        void joinRoomById(room.id, profile)
-          .catch((error) => pushToast({ title: "Could not request to join room", description: error.message, type: "error" }));
+      if (!request && !requestingRef.current) {
+        requestingRef.current = true;
+        joinRoomById(room.id, profile, room)
+          .catch((error) => {
+            requestingRef.current = false;
+            pushToast({ title: "Could not request to join room", description: error.message, type: "error" });
+          });
       }
     } else {
       setJoined(true);
@@ -745,7 +750,14 @@ export function WatchRoomPage() {
               The host has declined your request to join this private watch party.
             </p>
             <button
-              onClick={() => navigate("/dashboard")}
+              onClick={async () => {
+                try {
+                  await cancelJoinRequest(room.id, profile.uid);
+                } catch (e) {
+                  console.error("Failed to cancel join request:", e);
+                }
+                navigate("/dashboard");
+              }}
               className="w-full bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 px-6 font-bold border-none transition-all duration-300 shadow-[0_4px_20px_rgba(255,61,71,0.3)] cursor-pointer"
             >
               Return to Dashboard

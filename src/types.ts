@@ -36,6 +36,7 @@ export interface Participant {
   isCameraOn?: boolean;
   screenStreamId?: string | null;
   cameraStreamId?: string | null;
+  voiceStreamId?: string | null;
   connectionQuality?: "excellent" | "good" | "fair" | "poor";
   isHandRaised?: boolean;
   isTyping?: boolean;

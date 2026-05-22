@@ -28,7 +28,7 @@ interface MobileControlsProps {
   unreadCount: number;
   participantsCount: number;
   onStartVoice: () => void;
-  onToggleMute: () => void;
+  onToggleMute: (forceState?: boolean) => void;
   onToggleCamera: () => void;
   onShareScreen: (mode: "entire-screen" | "window") => void;
   onStopScreen: () => void;
@@ -147,53 +147,101 @@ export function MobileControls({
         </div>
       </div>
 
-      {/* Main Bottom Control Grid (6 equally-spaced, beautifully-sized buttons) */}
-      <div className="grid grid-cols-6 gap-1.5 xs:gap-2 max-w-md mx-auto items-center justify-items-center py-1 px-1 xs:px-2 sm:px-4">
+      {/* Main Bottom Control Grid (8 equally-spaced, beautifully-sized buttons) */}
+      <div className="grid grid-cols-8 gap-1 xs:gap-1.5 max-w-lg mx-auto items-center justify-items-center py-1 px-1 xs:px-2 sm:px-4">
         
-        {/* 1. Mic Control */}
+        {/* 1. Mute Mic */}
         <button
-          id="micBtn"
+          id="muteBtn"
           onClick={() => {
-            play(muted ? "mic-unmute" : "mic-mute");
-            onToggleMute();
+            if (!muted) {
+              play("mic-mute");
+              onToggleMute(true);
+            }
           }}
-          className={`h-12 w-12 rounded-full flex flex-col items-center justify-center border transition-all active:scale-90 cursor-pointer ${
+          disabled={muted}
+          className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all duration-300 ${
             muted
-              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)]"
-              : "bg-emerald-600/15 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)] opacity-60 cursor-not-allowed"
+              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10 active:scale-90 cursor-pointer"
           }`}
-          aria-label={muted ? "Unmute Mic" : "Mute Mic"}
+          aria-label="Mute Mic"
+          title="Mute Mic"
         >
-          {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          <MicOff className="h-5 w-5" />
         </button>
 
-        {/* 2. Deafen Control */}
+        {/* 2. Unmute Mic */}
+        <button
+          id="unmuteBtn"
+          onClick={() => {
+            if (muted) {
+              play("mic-unmute");
+              onToggleMute(false);
+            }
+          }}
+          disabled={!muted}
+          className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all duration-300 ${
+            !muted
+              ? "bg-emerald-600/15 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)] opacity-60 cursor-not-allowed"
+              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10 active:scale-90 cursor-pointer"
+          }`}
+          aria-label="Unmute Mic"
+          title="Unmute Mic"
+        >
+          <Mic className="h-5 w-5" />
+        </button>
+
+        {/* 3. Deafen Audio */}
         <button
           id="deafenBtn"
           onClick={() => {
-            const nextState = !deafened;
-            play(nextState ? "deafen" : "undeafen");
-            setDeafened(nextState);
+            if (!deafened) {
+              play("deafen");
+              setDeafened(true);
+            }
           }}
-          className={`h-12 w-12 rounded-full flex flex-col items-center justify-center border transition-all duration-300 active:scale-90 cursor-pointer ${
+          disabled={deafened}
+          className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all duration-300 ${
             deafened
-              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)]"
-              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10"
+              ? "bg-[#ff3d47]/15 border-[#ff3d47]/30 text-[#ff3d47] shadow-[0_0_12px_rgba(255,61,71,0.08)] opacity-60 cursor-not-allowed"
+              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10 active:scale-90 cursor-pointer"
           }`}
-          aria-label={deafened ? "Undeafen Audio – Receive incoming audio" : "Deafen Audio – Mute all incoming audio"}
-          title={deafened ? "Deafened – You can't hear others" : "Deafen Audio"}
+          aria-label="Deafen Audio – Mute all incoming audio"
+          title="Deafened – You can't hear others"
         >
-          {deafened ? <VolumeX className="h-5 w-5" /> : <Headphones className="h-5 w-5" />}
+          <VolumeX className="h-5 w-5" />
         </button>
 
-        {/* 2. Camera or Screen Share Control */}
+        {/* 4. Undeafen Audio */}
+        <button
+          id="undeafenBtn"
+          onClick={() => {
+            if (deafened) {
+              play("undeafen");
+              setDeafened(false);
+            }
+          }}
+          disabled={!deafened}
+          className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all duration-300 ${
+            !deafened
+              ? "bg-emerald-600/15 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)] opacity-60 cursor-not-allowed"
+              : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10 active:scale-90 cursor-pointer"
+          }`}
+          aria-label="Undeafen Audio – Receive incoming audio"
+          title="Undeafen Audio"
+        >
+          <Headphones className="h-5 w-5" />
+        </button>
+
+        {/* 5. Camera or Screen Share Control */}
         {hasScreenStream ? (
           <button
             onClick={() => {
               play("screenshare-stop");
               onStopScreen();
             }}
-            className="h-12 w-12 rounded-full flex items-center justify-center border bg-[#ff3d47] border-[#ff3d47] text-white shadow-[0_0_12px_rgba(255,61,71,0.4)] animate-pulse cursor-pointer"
+            className="h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border bg-[#ff3d47] border-[#ff3d47] text-white shadow-[0_0_12px_rgba(255,61,71,0.4)] animate-pulse cursor-pointer"
             aria-label="Stop Screen Share"
             title="Stop Screen Share"
           >
@@ -205,7 +253,7 @@ export function MobileControls({
               play(hasCameraStream ? "camera-off" : "camera-on");
               onToggleCamera();
             }}
-            className={`h-12 w-12 rounded-full flex items-center justify-center border transition-all active:scale-90 cursor-pointer ${
+            className={`h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border transition-all active:scale-90 cursor-pointer ${
               hasCameraStream
                 ? "bg-[#ff3d47] border-[#ff3d47] text-white shadow-[0_0_12px_rgba(255,61,71,0.3)] animate-glow"
                 : "bg-white/5 border-white/10 text-neutral-300 active:bg-white/10"
@@ -216,13 +264,13 @@ export function MobileControls({
           </button>
         )}
 
-        {/* 3. Chat Control */}
+        {/* 6. Chat Control */}
         <button
           onClick={() => {
             play("click");
             onOpenChat();
           }}
-          className="h-12 w-12 rounded-full flex items-center justify-center border bg-white/5 border-white/10 text-neutral-300 relative transition-all active:scale-90 cursor-pointer active:bg-white/10"
+          className="h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border bg-white/5 border-white/10 text-neutral-300 relative transition-all active:scale-90 cursor-pointer active:bg-white/10"
           aria-label="Open Chat"
         >
           <MessageSquare className="h-5 w-5" />
@@ -233,13 +281,13 @@ export function MobileControls({
           )}
         </button>
 
-        {/* 5. Participants Control */}
+        {/* 7. Participants Control */}
         <button
           onClick={() => {
             play("click");
             onOpenParticipants();
           }}
-          className="h-12 w-12 rounded-full flex items-center justify-center border bg-white/5 border-white/10 text-neutral-300 relative transition-all active:scale-90 cursor-pointer active:bg-white/10"
+          className="h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border bg-white/5 border-white/10 text-neutral-300 relative transition-all active:scale-90 cursor-pointer active:bg-white/10"
           aria-label="Open Participants"
         >
           <Users className="h-5 w-5" />
@@ -250,13 +298,13 @@ export function MobileControls({
           )}
         </button>
 
-        {/* 6. Leave Room Control */}
+        {/* 8. Leave Room Control */}
         <button
           onClick={() => {
             play("leave");
             onLeaveRoom();
           }}
-          className="h-12 w-12 rounded-full flex items-center justify-center border bg-red-600 border-red-500 text-white transition-all active:scale-90 cursor-pointer shadow-[0_0_15px_rgba(220,38,38,0.45)] hover:bg-red-700 hover:border-red-600"
+          className="h-10 w-10 min-w-[40px] xs:h-12 xs:w-12 rounded-full flex items-center justify-center border bg-red-600 border-red-500 text-white transition-all active:scale-90 cursor-pointer shadow-[0_0_15px_rgba(220,38,38,0.45)] hover:bg-red-700 hover:border-red-600"
           aria-label="Leave Room"
         >
           <LogOut className="h-5 w-5" />

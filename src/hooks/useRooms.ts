@@ -107,27 +107,31 @@ export async function createWatchRoom(
   return { id: ref.id, ...room };
 }
 
-export async function joinRoomById(roomId: string, profile: UserProfile) {
+export async function joinRoomById(roomId: string, profile: UserProfile, cachedRoom?: WatchRoom) {
   const roomRef = doc(db, "rooms", roomId);
-  const roomSnap = await getDoc(roomRef);
-  if (!roomSnap.exists()) {
-    throw new Error("Room not found.");
-  }
-  const roomData = roomSnap.data() as WatchRoom;
+  const roomData = cachedRoom || await (async () => {
+    const roomSnap = await getDoc(roomRef);
+    if (!roomSnap.exists()) {
+      throw new Error("Room not found.");
+    }
+    return roomSnap.data() as WatchRoom;
+  })();
   
   const isHost = roomData.hostId === profile.uid;
   const isAlreadyParticipant = roomData.participants && !!roomData.participants[profile.uid];
   
   if (isHost || isAlreadyParticipant) {
-    await updateDoc(roomRef, {
-      [`participants.${profile.uid}`]: participantFromProfile(profile, isHost),
-      updatedAt: Date.now(),
-      updatedAtServer: serverTimestamp()
-    });
-    await updateDoc(doc(db, "users", profile.uid), {
-      recentRooms: arrayUnion(roomId),
-      updatedAt: serverTimestamp()
-    });
+    await Promise.all([
+      updateDoc(roomRef, {
+        [`participants.${profile.uid}`]: participantFromProfile(profile, isHost),
+        updatedAt: Date.now(),
+        updatedAtServer: serverTimestamp()
+      }),
+      updateDoc(doc(db, "users", profile.uid), {
+        recentRooms: arrayUnion(roomId),
+        updatedAt: serverTimestamp()
+      })
+    ]);
     return;
   }
 
@@ -169,10 +173,6 @@ export async function approveJoinRequest(
   requestUser: { uid: string; name: string; avatar: string; avatarColor: string; subscriptionPlan?: string }
 ) {
   const roomRef = doc(db, "rooms", roomId);
-  const roomSnap = await getDoc(roomRef);
-  if (!roomSnap.exists()) return;
-  const roomData = roomSnap.data() as WatchRoom;
-
   const participant: Participant = {
     uid: requestUser.uid,
     name: requestUser.name,
@@ -189,17 +189,18 @@ export async function approveJoinRequest(
     subscriptionPlan: (requestUser.subscriptionPlan || "free") as any
   };
 
-  await updateDoc(roomRef, {
-    [`participants.${requestUser.uid}`]: participant,
-    [`joinRequests.${requestUser.uid}`]: deleteField(),
-    updatedAt: Date.now(),
-    updatedAtServer: serverTimestamp()
-  });
-
-  await updateDoc(doc(db, "users", requestUser.uid), {
-    recentRooms: arrayUnion(roomId),
-    updatedAt: serverTimestamp()
-  });
+  await Promise.all([
+    updateDoc(roomRef, {
+      [`participants.${requestUser.uid}`]: participant,
+      [`joinRequests.${requestUser.uid}`]: deleteField(),
+      updatedAt: Date.now(),
+      updatedAtServer: serverTimestamp()
+    }),
+    updateDoc(doc(db, "users", requestUser.uid), {
+      recentRooms: arrayUnion(roomId),
+      updatedAt: serverTimestamp()
+    })
+  ]);
 }
 
 export async function rejectJoinRequest(roomId: string, userId: string) {
