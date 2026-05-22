@@ -166,7 +166,7 @@ export function SearchPage() {
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
                 placeholder="Search for Naruto, Interstellar, Jujutsu Kaisen..."
-                className="w-full h-12 rounded-xl border border-white/10 bg-white/5 pl-4 pr-10 text-white placeholder:text-muted outline-none focus:border-cyan focus:ring-1 focus:ring-cyan/30 transition-all duration-300"
+                className="w-full h-12 rounded-xl border border-white/10 bg-white/5 pl-4 pr-10 text-base md:text-sm text-white placeholder:text-muted outline-none focus:border-cyan focus:ring-1 focus:ring-cyan/30 transition-all duration-300"
               />
               {value && (
                 <button

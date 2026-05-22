@@ -53,7 +53,7 @@ export function CatalogPage({ type }: { type: "movie" | "anime" }) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={`Search ${type === "movie" ? "movies" : "anime"}...`}
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+              className="min-w-0 flex-1 bg-transparent text-base md:text-sm outline-none placeholder:text-muted"
             />
           </label>
           <label className="flex h-12 items-center gap-2 rounded-lg border border-white/10 bg-white/8 px-3">

@@ -109,9 +109,9 @@ export function DashboardPage() {
           <SearchOverlay />
 
           {/* Quick Start Room Card */}
-          <section className="glass rounded-[24px] p-5 border border-white/5 bg-[#111111]/90 shadow-lg relative overflow-hidden">
+          <section className="glass rounded-[24px] p-4 sm:p-5 border border-white/5 bg-[#111111]/90 shadow-lg relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#ff3d47] to-cyan" />
-            <div className="mb-4 flex items-center gap-3">
+            <div className="mb-3.5 sm:mb-4 flex items-center gap-3">
               <div className="p-2 rounded-xl bg-[#ff3d47]/10 border border-[#ff3d47]/20 text-[#ff3d47]">
                 <Radio className="h-5 w-5" />
               </div>
@@ -120,12 +120,12 @@ export function DashboardPage() {
                 <p className="text-xs text-neutral-400">Launch an instant synchronized media stream.</p>
               </div>
             </div>
-            <div className="space-y-3.5">
+            <div className="space-y-3 sm:space-y-3.5">
               <input
                 value={customUrl}
                 onChange={(event) => setCustomUrl(event.target.value)}
                 placeholder="YouTube, local MP4 file, HLS stream..."
-                className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-xs text-white outline-none focus:border-[#ff3d47] transition-all duration-300 placeholder-neutral-500"
+                className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-base md:text-sm text-white outline-none focus:border-[#ff3d47] transition-all duration-300 placeholder-neutral-500"
               />
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button className="w-full bg-[#ff3d47] hover:bg-[#ff3d47]/90 text-white rounded-xl h-11 font-bold flex items-center justify-center gap-2 border-none shadow-glow-sm" onClick={() => handleStartRoomClick()}>

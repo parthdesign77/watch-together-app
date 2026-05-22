@@ -173,63 +173,93 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Backdrop for Mobile Drawer */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={toggleSidebar}
-            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
-          />
-        )}
-      </AnimatePresence>
+      {/* Desktop Sidebar (Persistent) */}
+      <aside className="fixed bottom-0 left-0 top-16 z-25 w-72 border-r border-white/10 bg-ink/80 p-4 hidden lg:block backdrop-blur-2xl">
+        <div className="flex h-full flex-col overflow-y-auto scrollbar-none">
+          <nav className="space-y-1">
+            {navItems.map((item) => (
+              <ShellLink key={item.href} {...item} />
+            ))}
+          </nav>
 
-      <AnimatePresence>
-        {(sidebarOpen || window.innerWidth >= 1024) && (
-          <motion.aside
-            className={`fixed bottom-0 left-0 top-16 z-40 w-72 border-r border-white/10 bg-ink/88 p-4 pb-28 lg:pb-4 backdrop-blur-2xl ${
-              sidebarOpen ? "block" : "hidden lg:block"
-            }`}
-            initial={{ x: -288 }}
-            animate={{ x: 0 }}
-            exit={{ x: -288 }}
-            transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          >
-            <div className="flex h-full flex-col overflow-y-auto scrollbar-none">
-              <nav className="space-y-1">
-                {navItems.map((item) => (
-                  <ShellLink key={item.href} {...item} onClick={handleLinkClick} />
-                ))}
-              </nav>
+          <div className="my-5 h-px bg-white/10" />
 
-              <div className="my-5 h-px bg-white/10" />
+          <nav className="space-y-1">
+            {utilityItems.map((item) => (
+              <ShellLink key={item.href} {...item} />
+            ))}
+          </nav>
 
-              <nav className="space-y-1">
-                {utilityItems.map((item) => (
-                  <ShellLink key={item.href} {...item} onClick={handleLinkClick} />
-                ))}
-              </nav>
-
-              <div className="mt-auto glass rounded-lg p-3">
-                <div className="flex items-center gap-3">
-                  <Avatar user={profile} />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold">{profile?.name || "Guest"}</p>
-                    <p className="truncate text-xs text-muted">{profile?.email}</p>
-                  </div>
-                </div>
-                <Button variant="ghost" className="mt-3 w-full justify-start" onClick={() => {
-                  handleLinkClick();
-                  logout();
-                }}>
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </Button>
+          <div className="mt-auto glass rounded-lg p-3">
+            <div className="flex items-center gap-3">
+              <Avatar user={profile} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold">{profile?.name || "Guest"}</p>
+                <p className="truncate text-xs text-muted">{profile?.email}</p>
               </div>
             </div>
-          </motion.aside>
+            <Button variant="ghost" className="mt-3 w-full justify-start" onClick={logout}>
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile Drawer (Animated) */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={toggleSidebar}
+              className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+            />
+            {/* Drawer */}
+            <motion.aside
+              className="fixed bottom-0 left-0 top-16 z-40 w-72 max-w-[80vw] border-r border-white/10 bg-ink/90 p-4 pb-28 backdrop-blur-2xl lg:hidden"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <div className="flex h-full flex-col overflow-y-auto scrollbar-none pb-safe">
+                <nav className="space-y-1">
+                  {navItems.map((item) => (
+                    <ShellLink key={item.href} {...item} onClick={handleLinkClick} />
+                  ))}
+                </nav>
+
+                <div className="my-5 h-px bg-white/10" />
+
+                <nav className="space-y-1">
+                  {utilityItems.map((item) => (
+                    <ShellLink key={item.href} {...item} onClick={handleLinkClick} />
+                  ))}
+                </nav>
+
+                <div className="mt-6 glass rounded-lg p-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar user={profile} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold">{profile?.name || "Guest"}</p>
+                      <p className="truncate text-xs text-muted">{profile?.email}</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" className="mt-3 w-full justify-start" onClick={() => {
+                    handleLinkClick();
+                    logout();
+                  }}>
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
+              </div>
+            </motion.aside>
+          </>
         )}
       </AnimatePresence>
 
