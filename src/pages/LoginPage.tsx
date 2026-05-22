@@ -73,7 +73,7 @@ export function LoginPage() {
     <div className="grid min-h-screen bg-cinema-radial text-snow lg:grid-cols-[1.15fr_.85fr]">
       {/* ---------- Left hero panel ---------- */}
       <section className="relative hidden overflow-hidden lg:block">
-        <img src="https://image.tmdb.org/t/p/original/s3TBrRGB1iav7gFOCNx3H31MoES.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src="https://image.tmdb.org/t/p/w1280/s3TBrRGB1iav7gFOCNx3H31MoES.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/76 to-transparent" />
         <div className="relative z-10 flex h-full flex-col justify-end p-12">
           <div className="mb-8 flex items-center gap-3">

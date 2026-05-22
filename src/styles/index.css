@@ -37,10 +37,21 @@ body {
   min-height: 100dvh;
   margin: 0;
   overflow-x: hidden;
+  background-color: #030303;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background:
     linear-gradient(rgba(3, 3, 3, 0.68), rgba(3, 3, 3, 0.96)),
-    url("https://image.tmdb.org/t/p/original/rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg") center/cover fixed,
-    #030303;
+    url("https://image.tmdb.org/t/p/w1280/rAiYTfKGqDCRIIqo664sY9XZIvQ.jpg") center/cover no-repeat;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
 }
 
 button,
