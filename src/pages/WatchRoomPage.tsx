@@ -678,7 +678,7 @@ export function WatchRoomPage() {
 
   return (
     <div className={`bg-[#090909] text-white p-3 sm:p-5 flex flex-col gap-3 sm:gap-5 overflow-x-hidden relative ${
-      cinemaMode ? "h-screen max-h-screen overflow-hidden" : "min-h-screen xl:h-screen xl:max-h-screen xl:overflow-hidden"
+      cinemaMode ? "h-[100dvh] max-h-[100dvh] overflow-hidden" : "min-h-[100dvh] xl:h-screen xl:max-h-screen xl:overflow-hidden"
     } ${isMobile ? "pb-24" : ""}`}>
       
       {/* Floating Exit Cinema Mode Button (Always visible in Cinema Mode) */}

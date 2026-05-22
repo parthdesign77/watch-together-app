@@ -63,7 +63,7 @@ export function AppShell() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-cinema-radial text-snow">
+    <div className="min-h-[100dvh] lg:min-h-screen bg-cinema-radial text-snow">
       <div className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-ink/70 backdrop-blur-2xl">
         <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-6">
           <div className="flex items-center gap-3">
@@ -169,7 +169,9 @@ export function AppShell() {
       <AnimatePresence>
         {(sidebarOpen || window.innerWidth >= 1024) && (
           <motion.aside
-            className="fixed bottom-0 left-0 top-16 z-40 w-72 border-r border-white/10 bg-ink/88 p-4 backdrop-blur-2xl lg:block"
+            className={`fixed bottom-0 left-0 top-16 z-40 w-72 border-r border-white/10 bg-ink/88 p-4 backdrop-blur-2xl ${
+              sidebarOpen ? "block" : "hidden lg:block"
+            }`}
             initial={{ x: -288 }}
             animate={{ x: 0 }}
             exit={{ x: -288 }}
@@ -208,7 +210,7 @@ export function AppShell() {
         )}
       </AnimatePresence>
 
-      <main className="min-h-screen px-4 pb-24 pt-20 lg:ml-72 lg:px-8">
+      <main className="min-h-[100dvh] lg:min-h-screen px-4 pb-24 pt-20 lg:ml-72 lg:px-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
