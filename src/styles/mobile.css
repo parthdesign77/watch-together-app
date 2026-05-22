@@ -87,4 +87,66 @@
   .participant-card {
     transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
+
+  /* Disable heavy CPU/GPU rendering of backdrop-filter blur on mobile screens to restore 60fps scrolling and rendering */
+  .glass,
+  .backdrop-blur,
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Increase solid opacity of components to preserve premium aesthetic without performance cost */
+  .glass {
+    background: rgba(17, 17, 17, 0.96) !important;
+  }
+  
+  .bg-black\/60,
+  .bg-black\/65,
+  .bg-black\/85,
+  .bg-black\/90,
+  .bg-black\/95 {
+    background-color: rgba(9, 9, 11, 0.97) !important;
+  }
+  
+  .bg-\[\#111111\]\/70,
+  .bg-\[\#111111\]\/80,
+  .bg-\[\#111111\]\/90,
+  .bg-\[\#111111\]\/95 {
+    background-color: rgba(18, 18, 22, 0.98) !important;
+  }
+  
+  .bg-\[\#090909\]\/85,
+  .bg-\[\#090909\]\/95 {
+    background-color: rgba(9, 9, 9, 0.98) !important;
+  }
+
+  .bg-\[\#121216\]\/90,
+  .bg-\[\#121216\]\/95 {
+    background-color: rgba(18, 18, 22, 0.98) !important;
+  }
+
+  /* Disable dynamic heavy shadows on mobile viewports to prevent extra compositing passes */
+  .shadow-2xl,
+  .shadow-glow-sm,
+  .shadow-glow-md,
+  .shadow-glow-lg,
+  .shadow-glow-xl {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  /* Simplify participant grid speak indicator layout repaints */
+  .participant-card.speaking {
+    box-shadow: 0 0 4px rgba(34, 197, 94, 0.5) !important;
+  }
+
+  /* Strip drop-shadow filters from rising emoji particles */
+  .fullscreen-emoji-particle span {
+    filter: none !important;
+  }
 }

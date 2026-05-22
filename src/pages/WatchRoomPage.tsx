@@ -74,7 +74,8 @@ export function WatchRoomPage() {
   const [fullscreenReactions, setFullscreenReactions] = useState<FullscreenReactionParticle[]>([]);
 
   const handleReactionTrigger = useCallback((reaction: { emoji: string; userName: string; id: string }) => {
-    const particleCount = 5;
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+    const particleCount = isMobileDevice ? 2 : 5;
     const particles = Array.from({ length: particleCount }).map((_, idx) => {
       return {
         id: `${reaction.id}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
