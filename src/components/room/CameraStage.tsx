@@ -164,7 +164,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                 {/* Overlay Name Tag */}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-1.5 flex items-center justify-between gap-1 z-10">
                   <p className="truncate text-[8px] sm:text-[10px] font-black text-white max-w-[70%]">
-                    {p?.name || feed.name.split(" ")[0]}
+                    {p?.name || feed.name?.split(" ")[0] || "Guest"}
                   </p>
                   {p?.isMuted ? (
                     <MicOff className="h-2.5 w-2.5 text-red-500 flex-shrink-0" />
