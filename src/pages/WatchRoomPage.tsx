@@ -15,6 +15,7 @@ import { RoomSettingsModal } from "../components/room/RoomSettingsModal";
 import { MovieSelectorModal } from "../components/room/MovieSelectorModal";
 import { LeaveRoomModal } from "../components/room/LeaveRoomModal";
 import { ReadyCheckModal } from "../components/room/ReadyCheckModal";
+import { DeviceSettingsModal } from "../components/room/DeviceSettingsModal";
 import { Badge } from "../components/ui/Badge";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -26,7 +27,8 @@ import {
   useRoomReactions,
   startReadyCheck,
   leaveRoom,
-  endRoom
+  endRoom,
+  useRoomMessages
 } from "../hooks/useRooms";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { useUiStore } from "../store/uiStore";
@@ -44,7 +46,18 @@ export function WatchRoomPage() {
   const { profile } = useAuth();
   const { room, loading } = useRoom(roomId);
   const participants = useParticipants(room);
+  const messages = useRoomMessages(room?.id);
   const { play } = useUISound();
+
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [lastSeenCount, setLastSeenCount] = useState(0);
+
+  interface ChatToast {
+    id: string;
+    userName: string;
+    text: string;
+  }
+  const [cinemaChatToasts, setCinemaChatToasts] = useState<ChatToast[]>([]);
 
   interface FullscreenReactionParticle {
     id: string;
@@ -90,6 +103,7 @@ export function WatchRoomPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [deviceSettingsOpen, setDeviceSettingsOpen] = useState(false);
   
   const [joined, setJoined] = useState(false);
   const [cinemaMode, setCinemaMode] = useState(false);
@@ -321,6 +335,113 @@ export function WatchRoomPage() {
       console.info("Voice connection waiting for mic button click.");
     });
   }, [joined, profile, room, webRTC]);
+
+  const localParticipant = useMemo(() => {
+    return participants.find((p) => p.uid === profile?.uid);
+  }, [participants, profile?.uid]);
+  const isHandRaised = localParticipant?.isHandRaised || false;
+
+  const handleToggleHandRaise = useCallback(async () => {
+    if (!room || !profile) return;
+    const nextHand = !isHandRaised;
+    await updateRoomState(room.id, {
+      [`participants.${profile.uid}.isHandRaised`]: nextHand
+    });
+    play("click");
+  }, [room, profile, isHandRaised, play]);
+
+  const pushToTalkEnabled = useUiStore((state) => state.pushToTalkEnabled);
+
+  useEffect(() => {
+    if (!pushToTalkEnabled || !joined || !room || !profile) return;
+
+    // Default mic to muted when PTT is active
+    webRTC.toggleMute(true);
+
+    let isSpacePressed = false;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        const active = document.activeElement;
+        const isInput = active && (
+          active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.hasAttribute("contenteditable") ||
+          active.getAttribute("role") === "textbox"
+        );
+        if (isInput) return;
+
+        e.preventDefault();
+        if (!isSpacePressed) {
+          isSpacePressed = true;
+          webRTC.toggleMute(false);
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        const active = document.activeElement;
+        const isInput = active && (
+          active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.hasAttribute("contenteditable") ||
+          active.getAttribute("role") === "textbox"
+        );
+        if (isInput) return;
+
+        e.preventDefault();
+        if (isSpacePressed) {
+          isSpacePressed = false;
+          webRTC.toggleMute(true);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      webRTC.toggleMute(false);
+    };
+  }, [pushToTalkEnabled, joined, room?.id, profile, webRTC]);
+
+  useEffect(() => {
+    if (activeTab === "chat" && !cinemaMode) {
+      setLastSeenCount(messages.length);
+    }
+  }, [messages.length, activeTab, cinemaMode]);
+
+  useEffect(() => {
+    if (activeTab === "chat" && !cinemaMode) {
+      setUnreadCount(0);
+    } else {
+      setUnreadCount(Math.max(0, messages.length - lastSeenCount));
+    }
+  }, [messages.length, lastSeenCount, activeTab, cinemaMode]);
+
+  const prevMessageCountRef = useRef(0);
+  useEffect(() => {
+    if (messages.length > prevMessageCountRef.current) {
+      const newMessages = messages.slice(prevMessageCountRef.current);
+      if (prevMessageCountRef.current > 0) {
+        newMessages.forEach((msg) => {
+          if (msg.userId !== profile?.uid) {
+            if (cinemaMode) {
+              const id = Math.random().toString(36).substring(2, 9);
+              setCinemaChatToasts((prev) => [...prev, { id, userName: msg.userName, text: msg.text }]);
+              setTimeout(() => {
+                setCinemaChatToasts((prev) => prev.filter((t) => t.id !== id));
+              }, 4000);
+            }
+          }
+        });
+      }
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages, cinemaMode, profile?.uid]);
 
   // Auto-enable camera in camera-first rooms (no movie URL loaded initially)
   useEffect(() => {
@@ -587,6 +708,9 @@ export function WatchRoomPage() {
           cinemaMode={cinemaMode}
           onToggleCinemaMode={() => setCinemaMode(!cinemaMode)}
           onTurnOffVideo={handleSwitchToNormalVC}
+          onOpenDeviceSettings={() => setDeviceSettingsOpen(true)}
+          isHandRaised={isHandRaised}
+          onToggleHandRaise={handleToggleHandRaise}
         />
       </div>
 
@@ -723,7 +847,7 @@ export function WatchRoomPage() {
                   play("click");
                   setActiveTab("chat");
                 }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer relative ${
                   activeTab === "chat"
                     ? "bg-[#ff3d47] text-white shadow-glow-sm"
                     : "text-neutral-400 hover:text-white bg-transparent"
@@ -731,6 +855,15 @@ export function WatchRoomPage() {
               >
                 <MessageSquare className="h-4 w-4" />
                 <span>Live Chat</span>
+                {unreadCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 bg-cyan text-black font-black text-[9px] h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border border-black shadow"
+                  >
+                    {unreadCount}
+                  </motion.span>
+                )}
               </button>
               <button
                 onClick={() => {
@@ -757,14 +890,14 @@ export function WatchRoomPage() {
                 <ParticipantsPanel participants={participants} />
               </div>
               <div className="flex-1 min-h-0">
-                <ChatPanel roomId={room.id} profile={profile} />
+                <ChatPanel roomId={room.id} profile={profile} messages={messages} participants={participants} />
               </div>
             </div>
 
             {/* Mobile/Tablet tabbed layout (Visible only on screens < xl) */}
             <div className="xl:hidden block w-full">
               {activeTab === "chat" ? (
-                <ChatPanel roomId={room.id} profile={profile} />
+                <ChatPanel roomId={room.id} profile={profile} messages={messages} participants={participants} />
               ) : (
                 <ParticipantsPanel participants={participants} />
               )}
@@ -774,7 +907,7 @@ export function WatchRoomPage() {
       </div>
 
       {remoteAudioStreams.map((item) => (
-        <StreamAudio key={`${item.uid}-${item.id}`} stream={item.stream} />
+        <StreamAudio key={`${item.uid}-${item.id}`} stream={item.stream} uid={item.uid} />
       ))}
 
       {/* Synchronized modals */}
@@ -782,6 +915,7 @@ export function WatchRoomPage() {
       <QualitySelectModal open={qualityOpen} onClose={() => setQualityOpen(false)} room={room} />
       <RoomSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} room={room} isHost={isHost} />
       <MovieSelectorModal open={selectorOpen} onClose={() => setSelectorOpen(false)} room={room} />
+      <DeviceSettingsModal open={deviceSettingsOpen} onClose={() => setDeviceSettingsOpen(false)} />
       
       {/* Leave confirmation modal */}
       <LeaveRoomModal
@@ -817,6 +951,31 @@ export function WatchRoomPage() {
             <span className="text-5xl md:text-6xl select-none filter drop-shadow-md">{p.emoji}</span>
           </div>
         ))}
+      </div>
+
+      {/* Premium Cinema Mode Floating Chat Toasts */}
+      <div className="fixed bottom-24 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm">
+        <AnimatePresence>
+          {cinemaMode && cinemaChatToasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 20, scale: 0.9, x: 20 }}
+              animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95, x: 20 }}
+              transition={{ duration: 0.3 }}
+              className="glass rounded-2xl p-3.5 border border-cyan/20 bg-black/85 text-white shadow-[0_0_20px_rgba(6,182,212,0.15)] flex flex-col gap-1 min-w-[200px]"
+            >
+              <span className="text-[11px] font-black text-cyan uppercase tracking-wider">{toast.userName}</span>
+              <p className="text-xs text-slate-200 break-words leading-relaxed font-medium">
+                {toast.text.startsWith("http") && (toast.text.includes(".gif") || toast.text.includes(".png") || toast.text.includes(".jpg") || toast.text.includes(".webp")) ? (
+                  <span className="italic text-neutral-400">Sent a sticker</span>
+                ) : (
+                  toast.text
+                )}
+              </p>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

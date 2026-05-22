@@ -37,6 +37,8 @@ export interface Participant {
   screenStreamId?: string | null;
   cameraStreamId?: string | null;
   connectionQuality?: "excellent" | "good" | "fair" | "poor";
+  isHandRaised?: boolean;
+  isTyping?: boolean;
 }
 
 export interface WatchRoom {

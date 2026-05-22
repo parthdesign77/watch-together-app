@@ -17,7 +17,8 @@ import {
   Smile,
   Copy,
   Check,
-  Tv
+  Tv,
+  Hand
 } from "lucide-react";
 import { updateRoomState } from "../../hooks/useRooms";
 import { useUISound } from "../../hooks/useUISound";
@@ -46,6 +47,9 @@ interface RoomControlsProps {
   cinemaMode: boolean;
   onToggleCinemaMode: () => void;
   onTurnOffVideo?: () => void;
+  onOpenDeviceSettings: () => void;
+  isHandRaised: boolean;
+  onToggleHandRaise: () => void;
 }
 
 export function RoomControls({
@@ -68,7 +72,10 @@ export function RoomControls({
   hasScreenStream,
   cinemaMode,
   onToggleCinemaMode,
-  onTurnOffVideo
+  onTurnOffVideo,
+  onOpenDeviceSettings,
+  isHandRaised,
+  onToggleHandRaise
 }: RoomControlsProps) {
   const { play } = useUISound();
   const [copied, setCopied] = useState(false);
@@ -302,6 +309,32 @@ export function RoomControls({
             </Button>
           </motion.div>
 
+          {/* Raise Hand Button */}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              style={{ width: "48px", height: "48px", minWidth: "48px" }}
+              variant={isHandRaised ? "success" : "secondary"}
+              className={`rounded-[14px] flex items-center justify-center p-0 border border-white/5 transition-all duration-300 relative ${
+                isHandRaised 
+                  ? "bg-amber-600 hover:bg-amber-500 text-white shadow-[0_0_15px_rgba(217,119,6,0.5)] border-amber-500/50" 
+                  : "bg-neutral-800 hover:bg-neutral-700 text-white"
+              }`}
+              onClick={() => {
+                play("click");
+                onToggleHandRaise();
+              }}
+              title={isHandRaised ? "Lower Hand" : "Raise Hand"}
+            >
+              <Hand className={`h-5 w-5 ${isHandRaised ? "animate-bounce fill-white" : ""}`} />
+              {isHandRaised && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3" aria-hidden="true">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                </span>
+              )}
+            </Button>
+          </motion.div>
+
           {/* Reaction Picker Button */}
           <div className="relative">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -381,6 +414,21 @@ export function RoomControls({
             </Button>
           </motion.div>
 
+          {/* Audio & Device Settings Button */}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              variant="secondary"
+              className="bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl border border-white/5 h-10 w-10 p-0 flex items-center justify-center"
+              onClick={() => {
+                play("click");
+                onOpenDeviceSettings();
+              }}
+              title="Audio & Device Settings"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+          </motion.div>
+
           {/* Leave/End Room Red Button */}
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
@@ -389,10 +437,10 @@ export function RoomControls({
                 play("leave");
                 onLeaveRoom();
               }}
-              title={isHost ? "End/Leave Room" : "Leave Room"}
+              title={isHost ? "End Room" : "Leave Room"}
             >
               <LogOut className="h-4 w-4" />
-              <span>Leave</span>
+              <span>{isHost ? "End Room" : "Leave Room"}</span>
             </Button>
           </motion.div>
         </div>

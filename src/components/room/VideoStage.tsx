@@ -8,6 +8,7 @@ import { Button } from "../ui/Button";
 import { CameraFeed, CameraStage } from "./CameraStage";
 import { StreamVideo } from "./StreamVideo";
 import { useUISound } from "../../hooks/useUISound";
+import { useAuth } from "../../context/AuthContext";
 
 interface VideoStageProps {
   room: WatchRoom;
@@ -36,6 +37,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
   const stageRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const { play } = useUISound();
+  const { profile } = useAuth();
   const [volume, setVolume] = useState(0.86);
   const [drift, setDrift] = useState(0);
   const [hovered, setHovered] = useState(false);
@@ -197,6 +199,10 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
         <div className="w-full flex items-center justify-center py-4">
           <div className="flex flex-wrap gap-6 items-center justify-center w-full max-w-full mx-auto">
             {participants.map((p) => {
+              const isLocal = profile && p.uid === profile.uid;
+              const isSharing = p.isScreenSharing;
+              const screenFeed = isSharing ? (isLocal ? screenStream : (p.uid === room.screenShareHost ? remoteScreenStream : null)) : null;
+              
               const feed = cameraFeeds.find((f) => f.id.startsWith(p.uid));
               const isSpeaking = p.isSpeaking;
               
@@ -208,7 +214,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                     background: `linear-gradient(to bottom, ${(p.avatarColor || "#ff3d47")}22, #121216)`
                   }}
                   className={`relative flex flex-col items-center justify-center rounded-[36px] overflow-hidden border backdrop-blur-md shadow-2xl transition-all duration-500 ease-out ${
-                    feed
+                    (feed || screenFeed)
                       ? "aspect-video w-[320px] sm:w-[400px] md:w-[480px]"
                       : "aspect-square w-[200px] sm:w-[260px] md:w-[300px]"
                   } ${
@@ -218,7 +224,18 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
                   }`}
                 >
                   <AnimatePresence mode="wait">
-                    {feed ? (
+                    {screenFeed ? (
+                      <motion.div
+                        key="screen"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                        className="absolute inset-0 w-full h-full rounded-[36px] overflow-hidden bg-black"
+                      >
+                        <StreamVideo stream={screenFeed} muted={true} className="w-full h-full object-contain animate-fade-in" />
+                      </motion.div>
+                    ) : feed ? (
                       <motion.div
                         key="camera"
                         initial={{ opacity: 0, scale: 0.95, rotateY: 90 }}

@@ -10,6 +10,7 @@ import {
   where
 } from "firebase/firestore";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useUiStore } from "../store/uiStore";
 import { turnServers } from "../lib/constants";
 import { db } from "../lib/firebase";
 import type { Participant } from "../types";
@@ -32,6 +33,9 @@ export interface RemoteStream {
 }
 
 export function useWebRTC(roomId: string | undefined, uid: string | undefined, participants: Participant[]) {
+  const audioInputDeviceId = useUiStore((state) => state.audioInputDeviceId);
+  const noiseSuppressionEnabled = useUiStore((state) => state.noiseSuppressionEnabled);
+
   const [voiceStream, setVoiceStream] = useState<MediaStream | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
@@ -40,9 +44,11 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const [speaking, setSpeaking] = useState(false);
   const peers = useRef<Record<string, RTCPeerConnection>>({});
   const localStreams = useRef<MediaStream[]>([]);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
   const processedSignals = useRef<Set<string>>(new Set());
   const analyserCleanup = useRef<(() => void) | null>(null);
   const candidateQueue = useRef<Record<string, RTCIceCandidateInit[]>>({});
+  const negotiationState = useRef<Record<string, { makingOffer: boolean; ignoreOffer: boolean }>>({});
 
   const participantsRef = useRef(participants);
   useEffect(() => {
@@ -86,6 +92,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
       const peer = new RTCPeerConnection({ iceServers: turnServers });
       peers.current[remoteUid] = peer;
+      negotiationState.current[remoteUid] = { makingOffer: false, ignoreOffer: false };
 
       localStreams.current.forEach((stream) => {
         stream.getTracks().forEach((track) => peer.addTrack(track, stream));
@@ -102,16 +109,45 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
         }
       };
 
-      peer.ontrack = (event) => {
-        let stream = event.streams[0];
-        if (!stream) {
-          stream = new MediaStream([event.track]);
+      peer.onnegotiationneeded = async () => {
+        try {
+          negotiationState.current[remoteUid].makingOffer = true;
+          const offer = await peer.createOffer();
+          if (peer.signalingState !== "stable") return;
+          await peer.setLocalDescription(offer);
+          await sendSignal({
+            type: "offer",
+            from: uid,
+            to: remoteUid,
+            sdp: peer.localDescription!
+          });
+        } catch (err) {
+          console.error("Error in onnegotiationneeded:", err);
+        } finally {
+          negotiationState.current[remoteUid].makingOffer = false;
         }
-        const originalStreamId = stream.id;
-        const freshStream = new MediaStream(stream.getTracks());
+      };
+
+      peer.ontrack = (event) => {
+        const stream = event.streams[0] || new MediaStream([event.track]);
+        
+        event.track.onended = () => {
+          console.log(`Track ${event.track.id} (${event.track.kind}) ended for peer ${remoteUid}`);
+          setRemoteStreams((current) => {
+            return current.filter((item) => {
+              if (item.uid === remoteUid && item.id === stream.id) {
+                // Only keep remote streams that have at least one active track
+                return item.stream.getTracks().some((t) => t.readyState === "live");
+              }
+              return true;
+            });
+          });
+        };
+
         setRemoteStreams((current) => {
-          const withoutExisting = current.filter((item) => !(item.uid === remoteUid && item.id === originalStreamId));
-          return [...withoutExisting, { uid: remoteUid, id: originalStreamId, stream: freshStream }];
+          const exists = current.some((item) => item.uid === remoteUid && item.id === stream.id);
+          if (exists) return current;
+          return [...current, { uid: remoteUid, id: stream.id, stream }];
         });
       };
 
@@ -124,6 +160,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           if (peers.current[remoteUid] === peer) {
             delete peers.current[remoteUid];
             delete candidateQueue.current[remoteUid];
+            delete negotiationState.current[remoteUid];
             delete peerJoinedAt.current[remoteUid];
           }
           setRemoteStreams((current) => current.filter((item) => item.uid !== remoteUid));
@@ -190,13 +227,21 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   );
 
   const startVoice = useCallback(async () => {
+    if (voiceStreamRef.current) {
+      voiceStreamRef.current.getTracks().forEach((track) => track.stop());
+      removeLocalStream(voiceStreamRef.current);
+      analyserCleanup.current?.();
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
+        deviceId: audioInputDeviceId && audioInputDeviceId !== "default" ? { exact: audioInputDeviceId } : undefined,
         echoCancellation: true,
-        noiseSuppression: true,
+        noiseSuppression: noiseSuppressionEnabled,
         autoGainControl: true
       }
     });
+    voiceStreamRef.current = stream;
     setVoiceStream(stream);
     addLocalStream(stream);
     setMuted(false);
@@ -212,7 +257,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     const tick = () => {
       analyser.getByteFrequencyData(data);
       const volume = data.reduce((sum, value) => sum + value, 0) / data.length;
-      setSpeaking(volume > 18 && !muted);
+      const isTrackMuted = stream.getAudioTracks().some((t) => !t.enabled);
+      setSpeaking(volume > 18 && !isTrackMuted);
       raf = requestAnimationFrame(tick);
     };
     tick();
@@ -221,7 +267,13 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       cancelAnimationFrame(raf);
       void audioContext.close();
     };
-  }, [addLocalStream, muted]);
+  }, [addLocalStream, removeLocalStream, audioInputDeviceId, noiseSuppressionEnabled]);
+
+  useEffect(() => {
+    if (voiceStreamRef.current) {
+      void startVoice();
+    }
+  }, [audioInputDeviceId, noiseSuppressionEnabled, startVoice]);
 
   const startCamera = useCallback(async (plan?: string) => {
     let videoConstraints: MediaTrackConstraints = {
@@ -356,9 +408,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     }
   }, [screenStream, removeLocalStream]);
 
-  const toggleMute = useCallback(() => {
+  const toggleMute = useCallback((forceState?: boolean) => {
     setMuted((nextMuted) => {
-      const shouldMute = !nextMuted;
+      const shouldMute = forceState !== undefined ? forceState : !nextMuted;
       voiceStream?.getAudioTracks().forEach((track) => {
         track.enabled = !shouldMute;
       });
@@ -394,26 +446,34 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           }
 
           const peer = createPeer(signal.from);
+          const neg = negotiationState.current[signal.from] || { makingOffer: false, ignoreOffer: false };
 
           void (async () => {
             if (signal.type === "offer" && signal.sdp) {
               try {
                 const isPolite = uid > signal.from;
-                const collision = peer.signalingState !== "stable";
-                if (collision) {
-                  if (isPolite) {
-                    console.log("Collision detected: polite peer rolling back for", signal.from);
-                    await peer.setLocalDescription({ type: "rollback" });
-                  } else {
-                    console.log("Collision detected: impolite peer ignoring offer from", signal.from);
-                    return;
-                  }
+                const offerCollision = neg.makingOffer || peer.signalingState !== "stable";
+
+                neg.ignoreOffer = !isPolite && offerCollision;
+                if (neg.ignoreOffer) {
+                  console.log("Collision: impolite peer ignoring offer from", signal.from);
+                  return;
+                }
+
+                if (offerCollision) {
+                  console.log("Collision: polite peer rolling back for", signal.from);
+                  await peer.setLocalDescription({ type: "rollback" });
                 }
 
                 await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
                 const answer = await peer.createAnswer();
                 await peer.setLocalDescription(answer);
-                await sendSignal({ type: "answer", from: uid, to: signal.from, sdp: answer });
+                await sendSignal({
+                  type: "answer",
+                  from: uid,
+                  to: signal.from,
+                  sdp: peer.localDescription!
+                });
                 await processQueuedCandidates(signal.from);
               } catch (err) {
                 console.error("Error processing SDP offer:", err);
@@ -421,13 +481,11 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             }
 
             if (signal.type === "answer" && signal.sdp) {
-              if (peer.signalingState === "have-local-offer") {
-                try {
-                  await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-                  await processQueuedCandidates(signal.from);
-                } catch (err) {
-                  console.error("Error setting remote description for answer:", err);
-                }
+              try {
+                await peer.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                await processQueuedCandidates(signal.from);
+              } catch (err) {
+                console.error("Error setting remote description for answer:", err);
               }
             }
 
@@ -442,7 +500,9 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
                   candidateQueue.current[signal.from].push(signal.candidate);
                 }
               } catch (err) {
-                console.warn("Error processing ICE candidate:", err);
+                if (!neg.ignoreOffer) {
+                  console.warn("Error processing ICE candidate:", err);
+                }
               }
             }
           })();
