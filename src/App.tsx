@@ -28,6 +28,9 @@ const OAuthScreen = lazy(() => import("./pages/UtilityPages").then(m => ({ defau
 const PaymentFailedPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.PaymentFailedPage })));
 const PaymentSuccessPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.PaymentSuccessPage })));
 const RoomExpiredPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.RoomExpiredPage })));
+const TermsPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.TermsPage })));
+const PrivacyPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.PrivacyPage })));
+const CookiesPage = lazy(() => import("./pages/UtilityPages").then(m => ({ default: m.CookiesPage })));
 
 function GlobalLoader() {
   return (
@@ -157,6 +160,10 @@ export function App() {
             <Route path="/room-expired" element={<RoomExpiredPage />} />
           </Route>
         </Route>
+
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/cookies" element={<CookiesPage />} />
 
         <Route path="/404" element={<NotFoundPage />} />
         <Route path="*" element={<Navigate to="/404" replace />} />

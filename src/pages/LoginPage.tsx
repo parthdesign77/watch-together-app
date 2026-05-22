@@ -19,6 +19,7 @@ export function LoginPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const pushToast = useUiStore((state) => state.pushToast);
@@ -47,8 +48,20 @@ export function LoginPage() {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!accepted) {
+      setLocalError("Please accept the Terms & Conditions before proceeding.");
+      return;
+    }
     void finish(() => (mode === "signup" ? signUpWithEmail(name, email, password) : signInWithEmail(email, password)));
   }
+
+  const handleGoogleSignIn = () => {
+    if (!accepted) {
+      setLocalError("Please accept the Terms & Conditions before proceeding.");
+      return;
+    }
+    void finish(signInWithGoogle);
+  };
 
   async function handleForgotPassword() {
     if (!email) {
@@ -127,8 +140,35 @@ export function LoginPage() {
             </div>
           )}
 
+          {/* ---------- Terms & Conditions Agreement ---------- */}
+          <div className="mt-6 rounded-xl border border-white/5 bg-white/5 p-4 text-xs text-neutral-400 space-y-3">
+            <p className="leading-relaxed">
+              By creating an account, signing in, accessing, or continuing to use this website and its services, you acknowledge that you have read, understood, and agreed to be bound by our{" "}
+              <Link to="/terms" target="_blank" rel="noreferrer" className="text-cyan hover:underline font-semibold">Terms & Conditions</Link>,{" "}
+              <Link to="/privacy" target="_blank" rel="noreferrer" className="text-cyan hover:underline font-semibold">Privacy Policy</Link>,{" "}
+              <Link to="/cookies" target="_blank" rel="noreferrer" className="text-cyan hover:underline font-semibold">Cookie Policy</Link>,{" "}
+              and applicable platform guidelines. Please review these documents carefully before proceeding. Your continued use of this platform constitutes your acceptance of these terms and any future updates or modifications made in accordance with our policies.
+            </p>
+            <label className="flex items-start gap-2.5 cursor-pointer text-snow select-none font-medium mt-2">
+              <input
+                type="checkbox"
+                id="terms-checkbox"
+                checked={accepted}
+                onChange={(e) => setAccepted(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-white/10 bg-white/5 text-cyan focus:ring-0 focus:ring-offset-0"
+              />
+              <span>
+                I have read and agree to the{" "}
+                <Link to="/terms" target="_blank" rel="noreferrer" className="text-cyan hover:underline font-semibold">Terms & Conditions</Link>,{" "}
+                <Link to="/privacy" target="_blank" rel="noreferrer" className="text-cyan hover:underline font-semibold">Privacy Policy</Link>,{" "}
+                <Link to="/cookies" target="_blank" rel="noreferrer" className="text-cyan hover:underline font-semibold">Cookie Policy</Link>,{" "}
+                and platform policies.
+              </span>
+            </label>
+          </div>
+
           {/* ---------- Google ---------- */}
-          <Button id="google-sign-in" className="mt-6 w-full" onClick={() => finish(signInWithGoogle)} disabled={isDisabled}>
+          <Button id="google-sign-in" className="mt-6 w-full" onClick={handleGoogleSignIn} disabled={isDisabled || !accepted}>
             {isDisabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Chrome className="h-4 w-4" />}
             Continue with Google
           </Button>
@@ -174,7 +214,7 @@ export function LoginPage() {
               required
               disabled={isDisabled}
             />
-            <Button id="email-submit" type="submit" className="w-full" disabled={isDisabled}>
+            <Button id="email-submit" type="submit" className="w-full" disabled={isDisabled || !accepted}>
               {isDisabled ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
               {mode === "login" ? "Login with email" : "Create account"}
             </Button>
@@ -203,6 +243,7 @@ export function LoginPage() {
               setLocalError(null);
               clearError();
               setResetSent(false);
+              setAccepted(false);
             }}
           >
             {mode === "login" ? "Need an account? Sign up" : "Already have an account? Login"}
