@@ -31,6 +31,32 @@ export function useUISound() {
     if (!globalAudioCtx) {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       globalAudioCtx = new AudioCtxClass();
+
+      // Intercept and scale gain values dynamically on mobile viewports to make sound effects soft and quiet
+      const originalCreateGain = globalAudioCtx.createGain.bind(globalAudioCtx);
+      globalAudioCtx.createGain = () => {
+        const gainNode = originalCreateGain();
+        
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+        const volScale = isMobileDevice ? 0.25 : 1.0;
+
+        const originalSetValueAtTime = gainNode.gain.setValueAtTime.bind(gainNode.gain);
+        gainNode.gain.setValueAtTime = (value: number, time: number) => {
+          return originalSetValueAtTime(value * volScale, time);
+        };
+
+        const originalLinearRampToValueAtTime = gainNode.gain.linearRampToValueAtTime.bind(gainNode.gain);
+        gainNode.gain.linearRampToValueAtTime = (value: number, time: number) => {
+          return originalLinearRampToValueAtTime(value * volScale, time);
+        };
+
+        const originalExponentialRampToValueAtTime = gainNode.gain.exponentialRampToValueAtTime.bind(gainNode.gain);
+        gainNode.gain.exponentialRampToValueAtTime = (value: number, time: number) => {
+          return originalExponentialRampToValueAtTime(value * volScale, time);
+        };
+
+        return gainNode;
+      };
     }
     if (globalAudioCtx.state === "suspended") {
       globalAudioCtx.resume().catch(() => {});

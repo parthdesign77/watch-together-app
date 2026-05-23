@@ -43,6 +43,25 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([]);
   const [muted, setMuted] = useState(true);
   const [speaking, setSpeaking] = useState(false);
+
+  // Automatically mute the microphone and disable tracks whenever deafened is activated
+  useEffect(() => {
+    if (deafened) {
+      setMuted(true);
+      const stream = voiceStreamRef.current;
+      if (stream) {
+        stream.getAudioTracks().forEach((track) => {
+          track.enabled = false;
+        });
+      }
+      const processedStream = processedVoiceStreamRef.current;
+      if (processedStream) {
+        processedStream.getAudioTracks().forEach((track) => {
+          track.enabled = false;
+        });
+      }
+    }
+  }, [deafened]);
   const peers = useRef<Record<string, RTCPeerConnection>>({});
   const localStreams = useRef<MediaStream[]>([]);
   const voiceStreamRef = useRef<MediaStream | null>(null);
@@ -829,7 +848,11 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           video: videoConstraints,
           audio: true
         } as any);
-      } catch (err) {
+      } catch (err: any) {
+        if (err && err.name === "NotAllowedError") {
+          console.log("[WebRTC] User cancelled mobile screen share picker.");
+          throw err;
+        }
         console.warn("[WebRTC] Mobile screen share with audio failed, retrying video-only fallback...", err);
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: videoConstraints,
@@ -857,7 +880,11 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           selfBrowserSurface: "exclude",
           systemAudio: "include"
         } as any);
-      } catch (e) {
+      } catch (e: any) {
+        if (e && e.name === "NotAllowedError") {
+          console.log("[WebRTC] User cancelled desktop screen share picker.");
+          throw e;
+        }
         console.warn("Failed screen share with high-fidelity audio, trying standard audio...", e);
         try {
           stream = await navigator.mediaDevices.getDisplayMedia({
@@ -869,7 +896,11 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
             } as any,
             selfBrowserSurface: "exclude"
           } as any);
-        } catch (e2) {
+        } catch (e2: any) {
+          if (e2 && e2.name === "NotAllowedError") {
+            console.log("[WebRTC] User cancelled secondary desktop screen share picker.");
+            throw e2;
+          }
           console.warn("Failed screen share with standard audio, trying video-only fallback...", e2);
           stream = await navigator.mediaDevices.getDisplayMedia({
             video: videoConstraints,
