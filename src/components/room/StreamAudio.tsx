@@ -12,7 +12,21 @@ export function StreamAudio({ stream, uid }: { stream: MediaStream | null; uid?:
     const audioElement = ref.current;
     if (!audioElement || !stream) return;
 
-    audioElement.srcObject = stream;
+    // Only assign srcObject if the underlying tracks have actually changed, to prevent audio silencing or autoplay blockage
+    const currentStream = audioElement.srcObject as MediaStream | null;
+    let isSame = false;
+    if (currentStream && stream) {
+      const currentTracks = currentStream.getTracks();
+      const newTracks = stream.getTracks();
+      if (currentTracks.length === newTracks.length) {
+        isSame = currentTracks.every((track, i) => track.id === newTracks[i]?.id);
+      }
+    }
+
+    if (!isSame) {
+      console.log("[Audio] Re-binding srcObject to stream", stream.id);
+      audioElement.srcObject = stream;
+    }
 
     const playAudio = () => {
       audioElement.play().catch((error) => {
