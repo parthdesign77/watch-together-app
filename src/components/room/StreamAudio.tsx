@@ -60,6 +60,7 @@ export function StreamAudio({ stream, uid }: { stream: MediaStream | null; uid?:
   useEffect(() => {
     if (ref.current) {
       ref.current.volume = deafened ? 0 : masterVolume * participantVolume;
+      ref.current.muted = deafened; // Explicit iOS Webkit & Android Chrome mute override
     }
   }, [masterVolume, participantVolume, deafened]);
 

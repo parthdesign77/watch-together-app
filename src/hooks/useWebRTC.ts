@@ -911,26 +911,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
 
     let stream: MediaStream;
     if (isMobileDevice) {
-      console.log("[WebRTC] Mobile device detected. Using highly compatible constraints for screen share with native system sound options.");
-      try {
-        // Chrome on Android supports system audio via audio: true, without desktop-only constraints like selfBrowserSurface
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: videoConstraints,
-          audio: true
-        } as any);
-      } catch (err: any) {
-        if (err && err.name === "NotAllowedError") {
-          console.log("[WebRTC] User cancelled mobile screen share picker.");
-          throw err;
-        }
-        console.warn("[WebRTC] Mobile screen share with audio failed, retrying video-only fallback...", err);
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: videoConstraints,
-          audio: false
-        } as any);
-      }
-    } else if (isIOS) {
-      console.log("[WebRTC] iOS detected. Requesting video-only screen share to bypass Apple sandbox constraints cleanly.");
+      console.log("[WebRTC] Mobile device detected. Requesting video-only screen share to bypass mobile sandbox constraints cleanly.");
       stream = await navigator.mediaDevices.getDisplayMedia({
         video: videoConstraints,
         audio: false
@@ -1003,6 +984,10 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const toggleMute = useCallback((forceState?: boolean) => {
     const isStreamActive = voiceStreamRef.current && voiceStreamRef.current.getAudioTracks().some((t) => t.readyState === "live");
     if (!isStreamActive) {
+      if (forceState === true) {
+        setMuted(true);
+        return;
+      }
       console.log("[WebRTC] toggleMute clicked while mic stream is uninitialized or inactive. Requesting user permission and starting capture.");
       void startVoice();
       return;

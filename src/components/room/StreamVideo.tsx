@@ -47,6 +47,12 @@ export function StreamVideo({ stream, muted = false, volume = 1.0, className = "
 
   useEffect(() => {
     if (videoRef.current) {
+      videoRef.current.muted = muted;
+    }
+  }, [muted]);
+
+  useEffect(() => {
+    if (videoRef.current) {
       videoRef.current.volume = volume;
     }
   }, [volume]);
