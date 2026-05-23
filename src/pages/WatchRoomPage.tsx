@@ -371,6 +371,9 @@ export function WatchRoomPage() {
         if (participant.screenStreamId && item.id === participant.screenStreamId) {
           return false;
         }
+        if (participant.cameraStreamId && item.id !== participant.cameraStreamId) {
+          return false; // Skip stale/dead remote camera feeds
+        }
         if (item.stream === remoteScreenStream) {
           return false;
         }
@@ -1498,11 +1501,16 @@ export function WatchRoomPage() {
                       <button
                         type="button"
                         onClick={async () => {
-                          setMobileOptionsOpen(false);
                           if (room.isScreenSharing && room.screenShareHost === profile?.uid) {
+                            setMobileOptionsOpen(false);
                             await stopScreen();
                           } else {
-                            await shareScreen("entire-screen");
+                            try {
+                              await shareScreen("entire-screen");
+                              setMobileOptionsOpen(false);
+                            } catch (e) {
+                              console.warn("Screen share gesture failed:", e);
+                            }
                           }
                         }}
                         className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 flex-shrink-0 ${
