@@ -26,7 +26,7 @@ export function Avatar({ user, size = "md", showStatus = false }: AvatarProps) {
         className={`${sizes[size]} inline-flex items-center justify-center overflow-hidden rounded-full border border-white/15 bg-elevated font-bold text-white`}
         style={{ backgroundColor: avatar ? undefined : color }}
       >
-        {avatar ? <img src={avatar} alt={name} className="h-full w-full object-cover" /> : name.slice(0, 2).toUpperCase()}
+        {avatar ? <img src={avatar} alt={name} className="h-full w-full object-cover rounded-full" /> : name.slice(0, 2).toUpperCase()}
       </span>
       {showStatus && participant?.isSpeaking ? (
         <span className="absolute -inset-1 rounded-full border-2 border-cyan shadow-glow" aria-hidden />

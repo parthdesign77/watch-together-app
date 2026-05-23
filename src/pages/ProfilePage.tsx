@@ -283,7 +283,7 @@ export function ProfilePage() {
                     <div className="flex flex-col items-center justify-center bg-white/2 border border-white/5 rounded-2xl p-6 text-center">
                       <div className="relative h-28 w-28 rounded-full border-4 border-premium/30 bg-elevated shadow-xl overflow-hidden mb-4 flex items-center justify-center">
                         {avatar ? (
-                          <img src={avatar} alt="Preview" className="h-full w-full object-cover" />
+                          <img src={avatar} alt="Preview" className="h-full w-full object-cover rounded-full" />
                         ) : (
                           <Avatar user={profile} size="xl" />
                         )}

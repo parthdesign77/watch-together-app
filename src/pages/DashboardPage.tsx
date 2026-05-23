@@ -331,7 +331,7 @@ export function DashboardPage() {
                       style={{ backgroundColor: host.avatar ? undefined : (host.avatarColor || "#ff3d47") }}
                     >
                       {host.avatar ? (
-                        <img src={host.avatar} alt={host.name || "Host"} className="h-full w-full object-cover" />
+                        <img src={host.avatar} alt={host.name || "Host"} className="h-full w-full object-cover rounded-full" />
                       ) : (
                         (host.name || "Host").slice(0, 1).toUpperCase()
                       )}

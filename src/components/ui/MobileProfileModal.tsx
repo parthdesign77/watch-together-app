@@ -235,7 +235,7 @@ export function MobileProfileModal({ open, onClose }: MobileProfileModalProps) {
                       <img 
                         src={selectedImage} 
                         alt="Crop Preview" 
-                        className="h-full w-full object-cover" 
+                        className="h-full w-full object-cover rounded-full" 
                         style={{
                           transform: `scale(${zoom}) translate(${offset.x}px, ${offset.y}px)`,
                           transformOrigin: "center"

@@ -106,7 +106,7 @@ export function AppShell() {
           <div className="flex items-center gap-2 md:hidden">
             <button
               onClick={() => setIsMobileProfileOpen(true)}
-              className="flex rounded-lg transition hover:scale-105 active:scale-95 focus:outline-none"
+              className="flex rounded-full transition hover:scale-105 active:scale-95 focus:outline-none"
               aria-label="Open Profile Settings"
             >
               <Avatar user={profile} />
@@ -119,7 +119,7 @@ export function AppShell() {
             </Badge>
             <button
               onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-              className="flex rounded-lg transition hover:scale-105 active:scale-95 focus:outline-none"
+              className="flex rounded-full transition hover:scale-105 active:scale-95 focus:outline-none"
               aria-label="User Profile"
             >
               <Avatar user={profile} />
