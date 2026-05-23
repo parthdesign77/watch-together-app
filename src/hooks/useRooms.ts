@@ -118,9 +118,8 @@ export async function joinRoomById(roomId: string, profile: UserProfile, cachedR
   })();
   
   const isHost = roomData.hostId === profile.uid;
-  const isAlreadyParticipant = roomData.participants && !!roomData.participants[profile.uid];
   
-  if (isHost || isAlreadyParticipant) {
+  if (isHost) {
     await Promise.all([
       updateDoc(roomRef, {
         [`participants.${profile.uid}`]: participantFromProfile(profile, isHost),
@@ -139,7 +138,9 @@ export async function joinRoomById(roomId: string, profile: UserProfile, cachedR
   const host = roomData.participants?.[hostId];
   const hostPlan = host?.subscriptionPlan || "free";
   
-  const participantCount = Object.keys(roomData.participants || {}).length;
+  const participantsWithoutMe = { ...roomData.participants };
+  delete participantsWithoutMe[profile.uid];
+  const participantCount = Object.keys(participantsWithoutMe).length;
   
   let limitValue = 2;
   if (hostPlan === "premium") {
@@ -163,6 +164,7 @@ export async function joinRoomById(roomId: string, profile: UserProfile, cachedR
       requestedAt: Date.now(),
       status: "pending"
     },
+    [`participants.${profile.uid}`]: deleteField(),
     updatedAt: Date.now(),
     updatedAtServer: serverTimestamp()
   });

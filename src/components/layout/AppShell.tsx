@@ -15,7 +15,7 @@ import {
   Tv,
   User
 } from "lucide-react";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useUiStore } from "../../store/uiStore";
@@ -320,7 +320,17 @@ export function AppShell() {
             exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
             transition={{ duration: 0.28, ease: "easeInOut" }}
           >
-            <Outlet />
+            <Suspense fallback={
+              <div className="flex h-[50vh] w-full items-center justify-center">
+                <img 
+                  src="/logo.png" 
+                  alt="Loading..." 
+                  className="h-12 w-auto object-contain animate-rotate-logo opacity-60" 
+                />
+              </div>
+            }>
+              <Outlet />
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>

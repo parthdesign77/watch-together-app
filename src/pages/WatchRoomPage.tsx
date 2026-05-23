@@ -1151,7 +1151,7 @@ export function WatchRoomPage() {
           </div>
 
           {/* Bottom Row: Camera list during screen sharing or Cinema Mode (always visible without scrolling) */}
-          {(screenShareActive || (cinemaMode && cameraFeeds.length > 0)) && !room.isPlaying && (
+          {((screenShareActive && !room.isPlaying) || (cinemaMode && cameraFeeds.length > 0 && room.isPlaying)) && (
             <div className="w-full flex-shrink-0">
               <CameraStage
                 feeds={cameraFeeds}

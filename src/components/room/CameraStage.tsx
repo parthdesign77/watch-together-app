@@ -51,7 +51,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
           {participants.map((p) => {
             const feed = feeds.find((f) => f.id.startsWith(p.uid));
             return (
-              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-[border-color,box-shadow] duration-200 ${p.isSpeaking ? 'speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
+              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-[border-color,box-shadow] duration-200 ${p.isSpeaking ? 'border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
                 {feed ? (
                   <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
@@ -68,7 +68,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                 )}
                 
                 {p.isSpeaking && (
-                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none z-20" />
                 )}
 
                 {/* Name Tag and mic overlay */}
@@ -168,7 +168,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                 <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover" />
                 
                 {isSpeaking && (
-                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none z-20" />
                 )}
 
                 {/* Overlay Name Tag */}
@@ -232,7 +232,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
           {participants.map((p) => {
             const feed = feeds.find((f) => f.id.startsWith(p.uid));
             return (
-              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-[border-color,box-shadow] duration-200 ${p.isSpeaking ? 'speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
+              <div key={p.uid} className={`participant-card relative h-full aspect-video flex-shrink-0 rounded-lg overflow-hidden border bg-[#111111] flex items-center justify-center transition-[border-color,box-shadow] duration-200 ${p.isSpeaking ? 'border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : 'border-white/5'}`}>
                 {feed ? (
                   <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full w-full object-cover animate-fade-in" />
                 ) : (
@@ -249,7 +249,7 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
                 )}
                 
                 {p.isSpeaking && (
-                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+                  <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none z-20" />
                 )}
 
                 {/* Name Tag and mic overlay */}
@@ -302,14 +302,14 @@ export function CameraStage({ feeds, participants = [], screenShareActive, conta
               key={feed.id} 
               className={`participant-card relative overflow-hidden rounded-lg border bg-elevated transition-[border-color,box-shadow] duration-200 ${
                 isSpeaking 
-                  ? "speaking border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
+                  ? "border-emerald-500/80 shadow-[0_0_10px_rgba(16,185,129,0.2)]" 
                   : "border-white/10"
               }`}
             >
               <StreamVideo stream={feed.stream} muted={feed.muted} className="h-full min-h-[240px] w-full object-cover" />
               
               {isSpeaking && (
-                <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none animate-speaking-pulse-ring z-20" />
+                <div className="absolute inset-0 border-2 border-emerald-500 rounded-[inherit] pointer-events-none z-20" />
               )}
 
               <div className="absolute left-3 top-3 flex items-center gap-2">

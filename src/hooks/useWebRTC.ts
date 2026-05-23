@@ -58,6 +58,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   const mutedRef = useRef(false);
   const lastAudioDeviceId = useRef<string | undefined>(undefined);
   const lastNoiseSuppression = useRef<boolean>(false);
+  const sessionStartTime = useRef(Date.now() - 5000);
 
   const participantsRef = useRef(participants);
   useEffect(() => {
@@ -917,7 +918,12 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   useEffect(() => {
     if (!roomId || !uid) return;
 
-    const signalsQuery = query(collection(db, "rooms", roomId, "signals"), where("to", "==", uid), orderBy("createdAt", "asc"));
+    const signalsQuery = query(
+      collection(db, "rooms", roomId, "signals"),
+      where("to", "==", uid),
+      where("createdAt", ">=", sessionStartTime.current),
+      orderBy("createdAt", "asc")
+    );
     return onSnapshot(
       signalsQuery,
       (snapshot) => {

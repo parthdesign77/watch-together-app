@@ -221,24 +221,6 @@ export function RoomControls({
             </Button>
           </motion.div>
 
-          {/* Voice Chat Button */}
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              style={{ width: "48px", height: "48px", minWidth: "48px" }}
-              variant={muted ? "secondary" : "success"}
-              className={`rounded-[14px] flex items-center justify-center p-0 border border-white/5 ${
-                muted ? "bg-neutral-800 hover:bg-neutral-700 text-white" : "bg-emerald-600 hover:bg-emerald-500 text-white"
-              }`}
-              onClick={() => {
-                play("voice");
-                onStartVoice();
-              }}
-              title={muted ? "Connect Voice" : "Voice Connected"}
-            >
-              <Mic className="h-5 w-5" />
-            </Button>
-          </motion.div>
-
           {/* Mute/Unmute Toggle Button */}
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
@@ -272,6 +254,9 @@ export function RoomControls({
                 const nextState = !deafened;
                 play(nextState ? "deafen" : "undeafen");
                 setDeafened(nextState);
+                if (nextState) {
+                  onToggleMute(true);
+                }
               }}
               title={deafened ? "Undeafen Audio" : "Deafen Audio"}
               aria-label={deafened ? "Undeafen Audio – Receive incoming audio" : "Deafen Audio – Mute all incoming audio"}
