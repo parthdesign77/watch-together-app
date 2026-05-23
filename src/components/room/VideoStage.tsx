@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Maximize2, Minimize2, Pause, PictureInPicture2, Play, RefreshCw, SkipBack, Volume2, Video, Mic, MicOff, HeadphoneOff } from "lucide-react";
+import { Maximize2, Minimize2, Pause, PictureInPicture2, Play, RefreshCw, SkipBack, Volume2, Video, Mic, MicOff, HeadphoneOff, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updatePlayback } from "../../hooks/useRooms";
 import type { WatchRoom, Participant } from "../../types";
@@ -47,6 +47,7 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
   const lastTap = useRef<number>(0);
   const [showZoomIndicator, setShowZoomIndicator] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [localScreenMuted, setLocalScreenMuted] = useState(true);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleDoubleTap = (e: React.MouseEvent | React.TouchEvent) => {
@@ -220,8 +221,8 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
         >
           <StreamVideo
             stream={activeScreenStream}
-            muted={Boolean(screenStream)}
-            volume={Boolean(screenStream) ? 0 : screenShareVolume}
+            muted={Boolean(screenStream) ? localScreenMuted : false}
+            volume={Boolean(screenStream) ? (localScreenMuted ? 0 : screenShareVolume) : screenShareVolume}
             className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`}
           />
           {hovered && (
@@ -536,9 +537,22 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
               <span className="text-[10px] font-black uppercase tracking-widest text-[#ff3d47]">
                 Screenshare Config
               </span>
-              <span className="text-[9px] font-medium text-neutral-400">
-                Right-Click Menu
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-medium text-neutral-400">
+                  Right-Click Menu
+                </span>
+                <button
+                  onClick={() => {
+                    play("click");
+                    setContextMenu(null);
+                  }}
+                  className="rounded-full p-1 hover:bg-white/10 text-neutral-400 hover:text-white transition cursor-pointer flex items-center justify-center"
+                  aria-label="Close configuration menu"
+                  title="Close Menu"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
             </div>
 
             {/* Volume Adjustment */}
@@ -546,35 +560,42 @@ export function VideoStage({ room, isHost, screenStream, remoteScreenStream, cam
               <span className="text-[11px] font-bold text-neutral-300">
                 Stream Volume
               </span>
-              {screenStream ? (
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/5 text-[11px] text-neutral-400">
-                  <MicOff className="h-3.5 w-3.5 text-[#ff3d47]" />
-                  <span>Local Screenshare (Muted)</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-xl px-3 py-2">
-                  <button
-                    onClick={() => {
-                      play("click");
+              <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-xl px-3 py-2">
+                <button
+                  onClick={() => {
+                    play("click");
+                    if (screenStream) {
+                      setLocalScreenMuted((m) => !m);
+                    } else {
                       setScreenShareVolume((v) => (v > 0 ? 0 : 0.8));
-                    }}
-                    className="text-neutral-400 hover:text-white transition cursor-pointer"
-                  >
-                    <Volume2 className="h-4 w-4 text-[#ff3d47]" />
-                  </button>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={screenShareVolume}
-                    onChange={(e) => setScreenShareVolume(Number(e.target.value))}
-                    className="w-full h-1 rounded-full bg-neutral-800 accent-[#ff3d47] cursor-pointer"
-                  />
-                  <span className="text-[10px] font-mono text-neutral-300 w-8 text-right">
-                    {Math.round(screenShareVolume * 100)}%
-                  </span>
-                </div>
+                    }
+                  }}
+                  className="text-neutral-400 hover:text-white transition cursor-pointer flex-shrink-0"
+                >
+                  {screenStream ? (
+                    localScreenMuted ? <MicOff className="h-4 w-4 text-[#ff3d47]" /> : <Volume2 className="h-4 w-4 text-emerald-400" />
+                  ) : (
+                    screenShareVolume > 0 ? <Volume2 className="h-4 w-4 text-[#ff3d47]" /> : <MicOff className="h-4 w-4 text-neutral-500" />
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  disabled={Boolean(screenStream && localScreenMuted)}
+                  value={screenStream && localScreenMuted ? 0 : screenShareVolume}
+                  onChange={(e) => setScreenShareVolume(Number(e.target.value))}
+                  className="w-full h-1 rounded-full bg-neutral-800 accent-[#ff3d47] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                />
+                <span className="text-[10px] font-mono text-neutral-300 w-8 text-right flex-shrink-0">
+                  {screenStream && localScreenMuted ? "Muted" : `${Math.round(screenShareVolume * 100)}%`}
+                </span>
+              </div>
+              {screenStream && (
+                <span className="text-[9px] text-[#ff3d47]/90 font-medium italic leading-tight mt-0.5">
+                  * Muted locally to prevent microphone feedback echo loop
+                </span>
               )}
             </div>
 

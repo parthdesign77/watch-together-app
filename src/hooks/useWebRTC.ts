@@ -180,6 +180,42 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
                 console.warn("[WebRTC] Failed to set screen share bitrate parameters on new peer:", bitrateErr);
               }
             }
+
+            // Apply camera bitrate and framerate constraints by plan
+            if (sender && track.kind === "video" && stream === cameraStreamRef.current) {
+              try {
+                const params = sender.getParameters();
+                if (!params.encodings) {
+                  params.encodings = [{}];
+                }
+                const ourParticipant = participantsRef.current.find(p => p.uid === uid);
+                const myPlan = ourParticipant?.subscriptionPlan || "free";
+                const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+                
+                let maxBitrate = 300000; // Free user default
+                let scaleDown = isMobileDevice ? 1.8 : 1.5;
+                let maxFramerate = 20;
+
+                if (myPlan === "premium") {
+                  maxBitrate = isMobileDevice ? 1000000 : 1800000;
+                  scaleDown = 1.0;
+                  maxFramerate = 30;
+                } else if (myPlan === "standard") {
+                  maxBitrate = isMobileDevice ? 600000 : 900000;
+                  scaleDown = 1.2;
+                  maxFramerate = 24;
+                }
+
+                params.encodings[0].maxBitrate = maxBitrate;
+                params.encodings[0].scaleResolutionDownBy = scaleDown;
+                params.encodings[0].maxFramerate = maxFramerate;
+                
+                await sender.setParameters(params);
+                console.log(`[WebRTC Camera] Enforced camera settings on peer init for ${myPlan} user: maxBitrate=${maxBitrate}, scaleDown=${scaleDown}, fps=${maxFramerate}`);
+              } catch (bitrateErr) {
+                console.warn("[WebRTC] Failed to set camera encoding parameters on new peer:", bitrateErr);
+              }
+            }
           }
         });
       });
@@ -423,6 +459,40 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
               console.log(`[WebRTC] Enforced screen-share maxBitrate: ${maxBitrate} bps for peer`);
             } catch (bitrateErr) {
               console.warn("[WebRTC] Failed to set screen share bitrate parameters:", bitrateErr);
+            }
+          }
+
+          // Apply camera bitrate and framerate constraints by plan
+          if (sender && track.kind === "video" && stream === cameraStreamRef.current) {
+            try {
+              const params = sender.getParameters();
+              if (!params.encodings) {
+                params.encodings = [{}];
+              }
+              const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+              
+              let maxBitrate = 300000; // Free user default
+              let scaleDown = isMobileDevice ? 1.8 : 1.5;
+              let maxFramerate = 20;
+
+              if (myPlan === "premium") {
+                maxBitrate = isMobileDevice ? 1000000 : 1800000;
+                scaleDown = 1.0;
+                maxFramerate = 30;
+              } else if (myPlan === "standard") {
+                maxBitrate = isMobileDevice ? 600000 : 900000;
+                scaleDown = 1.2;
+                maxFramerate = 24;
+              }
+
+              params.encodings[0].maxBitrate = maxBitrate;
+              params.encodings[0].scaleResolutionDownBy = scaleDown;
+              params.encodings[0].maxFramerate = maxFramerate;
+              
+              await sender.setParameters(params);
+              console.log(`[WebRTC Camera] Enforced camera settings for ${myPlan} user: maxBitrate=${maxBitrate}, scaleDown=${scaleDown}, fps=${maxFramerate}`);
+            } catch (bitrateErr) {
+              console.warn("[WebRTC] Failed to set camera encoding parameters:", bitrateErr);
             }
           }
         }
