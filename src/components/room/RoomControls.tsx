@@ -256,6 +256,8 @@ export function RoomControls({
                 setDeafened(nextState);
                 if (nextState) {
                   onToggleMute(true);
+                } else {
+                  onToggleMute(false);
                 }
               }}
               title={deafened ? "Undeafen Audio" : "Deafen Audio"}

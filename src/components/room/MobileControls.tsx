@@ -177,6 +177,8 @@ export function MobileControls({
             setDeafened(nextState);
             if (nextState) {
               onToggleMute(true);
+            } else {
+              onToggleMute(false);
             }
           }}
           className={`h-12 w-12 rounded-full flex flex-col items-center justify-center border transition-all duration-300 active:scale-90 cursor-pointer ${
