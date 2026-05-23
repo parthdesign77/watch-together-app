@@ -25,9 +25,10 @@ export type UISoundType =
 
 // Global, module-level singleton AudioContext to prevent browser limit crashes and optimize responsiveness
 let globalAudioCtx: AudioContext | null = null;
+let globalMasterGain: GainNode | null = null;
 let lastSoundPlayedTime = 0;
 
-function initAudioContext(AudioCtxClass: any): AudioContext {
+function initAudioContext(AudioCtxClass: any): { ctx: AudioContext; masterGain: GainNode } {
   const ctx = new AudioCtxClass();
 
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
@@ -38,24 +39,7 @@ function initAudioContext(AudioCtxClass: any): AudioContext {
   masterGain.gain.setValueAtTime(volScale, ctx.currentTime);
   masterGain.connect(ctx.destination);
 
-  const wrapNode = (node: any) => {
-    const originalConnect = node.connect.bind(node);
-    node.connect = (dest: any, output?: number, input?: number) => {
-      if (dest === ctx.destination) {
-        return originalConnect(masterGain, output, input);
-      }
-      return originalConnect(dest, output, input);
-    };
-    return node;
-  };
-
-  const originalCreateGain = ctx.createGain.bind(ctx);
-  ctx.createGain = () => wrapNode(originalCreateGain()) as GainNode;
-
-  const originalCreateBiquadFilter = ctx.createBiquadFilter.bind(ctx);
-  ctx.createBiquadFilter = () => wrapNode(originalCreateBiquadFilter()) as BiquadFilterNode;
-
-  return ctx;
+  return { ctx, masterGain };
 }
 
 // Enable automatic mobile user-gesture unlock on first click/touch
@@ -64,7 +48,9 @@ if (typeof window !== "undefined") {
     const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!globalAudioCtx && AudioCtxClass) {
       try {
-        globalAudioCtx = initAudioContext(AudioCtxClass);
+        const { ctx, masterGain } = initAudioContext(AudioCtxClass);
+        globalAudioCtx = ctx;
+        globalMasterGain = masterGain;
         console.log("[useUISound] AudioContext pre-initialized via user gesture.");
       } catch (e) {
         console.warn("Failed to pre-initialize AudioContext:", e);
@@ -90,15 +76,28 @@ if (typeof window !== "undefined") {
 }
 
 export function useUISound() {
-  const getAudioContext = (): AudioContext => {
+  const getAudioCtxAndGain = (type?: UISoundType): { ctx: AudioContext | null; masterGain: GainNode | null } => {
     if (!globalAudioCtx) {
+      // If hover action triggers before user click/touch gesture, skip context instantiation
+      // to avoid triggering browser console autoplay policies and audio subsystem lockout
+      if (type === "hover") {
+        return { ctx: null, masterGain: null };
+      }
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      globalAudioCtx = initAudioContext(AudioCtxClass);
+      if (!AudioCtxClass) return { ctx: null, masterGain: null };
+      try {
+        const { ctx, masterGain } = initAudioContext(AudioCtxClass);
+        globalAudioCtx = ctx;
+        globalMasterGain = masterGain;
+      } catch (e) {
+        console.warn("Failed to lazy-initialize AudioContext:", e);
+        return { ctx: null, masterGain: null };
+      }
     }
     if (globalAudioCtx.state === "suspended") {
       globalAudioCtx.resume().catch(() => {});
     }
-    return globalAudioCtx;
+    return { ctx: globalAudioCtx, masterGain: globalMasterGain };
   };
 
   const play = useCallback((type: UISoundType) => {
@@ -115,7 +114,8 @@ export function useUISound() {
       }
       lastSoundPlayedTime = nowTime;
 
-      const ctx = getAudioContext();
+      const { ctx, masterGain } = getAudioCtxAndGain(type);
+      if (!ctx || !masterGain) return;
       const now = ctx.currentTime;
 
       switch (type) {
@@ -131,7 +131,7 @@ export function useUISound() {
           gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
 
           osc.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(masterGain);
           osc.start(now);
           osc.stop(now + 0.04);
           break;
@@ -148,7 +148,7 @@ export function useUISound() {
           gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
 
           osc.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(masterGain);
           osc.start(now);
           osc.stop(now + 0.07);
           break;
@@ -166,7 +166,7 @@ export function useUISound() {
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.05);
 
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(masterGain);
             osc.start(now + delay);
             osc.stop(now + delay + 0.05);
           };
@@ -187,7 +187,7 @@ export function useUISound() {
           gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
 
           osc.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(masterGain);
           osc.start(now);
           osc.stop(now + 0.22);
           break;
@@ -203,7 +203,7 @@ export function useUISound() {
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur);
 
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(masterGain);
             osc.start(now + delay);
             osc.stop(now + delay + dur);
           };
@@ -224,7 +224,7 @@ export function useUISound() {
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + dur);
 
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(masterGain);
             osc.start(now + delay);
             osc.stop(now + delay + dur);
           };
@@ -245,7 +245,7 @@ export function useUISound() {
           gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
 
           osc.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(masterGain);
           osc.start(now);
           osc.stop(now + 0.05);
           break;
@@ -263,7 +263,7 @@ export function useUISound() {
           gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
 
           osc.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(masterGain);
           osc.start(now);
           osc.stop(now + 0.55);
           break;
@@ -279,7 +279,7 @@ export function useUISound() {
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.22);
 
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(masterGain);
             osc.start(now + delay);
             osc.stop(now + delay + 0.22);
           };
@@ -307,7 +307,7 @@ export function useUISound() {
 
           osc1.connect(gain);
           osc2.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(masterGain);
           
           osc1.start(now);
           osc2.start(now);
@@ -334,7 +334,7 @@ export function useUISound() {
 
           osc1.connect(gain);
           osc2.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(masterGain);
           
           osc1.start(now);
           osc2.start(now);
@@ -353,7 +353,7 @@ export function useUISound() {
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.3);
 
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(masterGain);
             osc.start(now + delay);
             osc.stop(now + delay + 0.3);
           };
@@ -383,8 +383,8 @@ export function useUISound() {
 
           osc1.connect(gain1);
           osc2.connect(gain2);
-          gain1.connect(ctx.destination);
-          gain2.connect(ctx.destination);
+          gain1.connect(masterGain);
+          gain2.connect(masterGain);
 
           osc1.start(now);
           osc2.start(now + 0.05);
@@ -413,8 +413,8 @@ export function useUISound() {
 
           osc1.connect(gain1);
           osc2.connect(gain2);
-          gain1.connect(ctx.destination);
-          gain2.connect(ctx.destination);
+          gain1.connect(masterGain);
+          gain2.connect(masterGain);
 
           osc1.start(now);
           osc2.start(now + 0.05);
@@ -432,7 +432,7 @@ export function useUISound() {
             gain.gain.setValueAtTime(vol, now + delay);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.25);
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(masterGain);
             osc.start(now + delay);
             osc.stop(now + delay + 0.25);
           };
@@ -451,7 +451,7 @@ export function useUISound() {
             gain.gain.setValueAtTime(vol, now + delay);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.25);
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(masterGain);
             osc.start(now + delay);
             osc.stop(now + delay + 0.25);
           };
@@ -470,7 +470,7 @@ export function useUISound() {
             gain.gain.setValueAtTime(0.05, now + delay);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.15);
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(masterGain);
             osc.start(now + delay);
             osc.stop(now + delay + 0.15);
           };
@@ -488,7 +488,7 @@ export function useUISound() {
           gain.gain.setValueAtTime(0.05, now);
           gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
           osc.connect(gain);
-          gain.connect(ctx.destination);
+          gain.connect(masterGain);
           osc.start(now);
           osc.stop(now + 0.25);
           break;
@@ -520,7 +520,7 @@ export function useUISound() {
             oscSine.connect(gain);
             oscTri.connect(gain);
             gain.connect(filter);
-            filter.connect(ctx.destination);
+            filter.connect(masterGain);
 
             oscSine.start(now + delay);
             oscTri.start(now + delay);
@@ -560,7 +560,7 @@ export function useUISound() {
             oscSine.connect(gain);
             oscTri.connect(gain);
             gain.connect(filter);
-            filter.connect(ctx.destination);
+            filter.connect(masterGain);
 
             oscSine.start(now + delay);
             oscTri.start(now + delay);

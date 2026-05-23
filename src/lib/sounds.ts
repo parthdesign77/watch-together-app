@@ -1,14 +1,42 @@
 // Web Audio API Synthesizer for low-latency modern UI click sounds
+let sharedAudioCtx: AudioContext | null = null;
+let sharedMasterGain: GainNode | null = null;
+
+function getSharedCtx() {
+  if (!sharedAudioCtx) {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return { ctx: null, masterGain: null };
+    
+    try {
+      sharedAudioCtx = new AudioContextClass();
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+      const volScale = isMobileDevice ? 0.65 : 1.0;
+      
+      sharedMasterGain = sharedAudioCtx.createGain();
+      sharedMasterGain.gain.setValueAtTime(volScale, sharedAudioCtx.currentTime);
+      sharedMasterGain.connect(sharedAudioCtx.destination);
+    } catch (e) {
+      console.warn("Failed to create shared AudioContext:", e);
+      return { ctx: null, masterGain: null };
+    }
+  }
+  
+  if (sharedAudioCtx && sharedAudioCtx.state === "suspended") {
+    sharedAudioCtx.resume().catch(() => {});
+  }
+  
+  return { ctx: sharedAudioCtx, masterGain: sharedMasterGain };
+}
+
 export function playSound(type: "click" | "success" | "danger" | "toggle" | "pop") {
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
+    const { ctx, masterGain } = getSharedCtx();
+    if (!ctx || !masterGain) return;
 
-    const ctx = new AudioContextClass();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterGain);
 
     const now = ctx.currentTime;
 
