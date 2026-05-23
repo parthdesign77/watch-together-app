@@ -4,6 +4,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute, AdminRoute } from "./components/layout/ProtectedRoute";
 import { useUISound } from "./hooks/useUISound";
 import { useAuth } from "./context/AuthContext";
+import { usePerformanceLogger } from "./utils/performance";
 
 // Lazy loaded page components to optimize bundle size and rendering speeds
 const LandingPage = lazy(() => import("./pages/LandingPage").then(m => ({ default: m.LandingPage })));
@@ -47,6 +48,7 @@ function GlobalLoader() {
 }
 
 export function App() {
+  usePerformanceLogger();
   const { play } = useUISound();
   const { user, loading } = useAuth();
   const location = useLocation();

@@ -300,7 +300,8 @@ export function useActiveRooms(profile?: UserProfile | null) {
     // Retrieve all active watch rooms on the platform so everyone can see and join
     const activeRoomsQuery = query(
       collection(db, "rooms"),
-      where("status", "in", ["waiting", "watching", "paused", "screen-sharing"])
+      where("status", "in", ["waiting", "watching", "paused", "screen-sharing"]),
+      limit(30)
     );
     return onSnapshot(
       activeRoomsQuery,

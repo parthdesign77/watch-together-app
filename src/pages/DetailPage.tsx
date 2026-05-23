@@ -9,7 +9,7 @@ import { useAuth } from "../context/AuthContext";
 import { allSeeds } from "../data/catalog";
 import { useStartRoom } from "../hooks/useStartRoom";
 import { toggleWatchlist } from "../hooks/useWatchlist";
-import { getAnimeRows, getMovieRows } from "../services/contentService";
+import { getContentItem } from "../services/contentService";
 import { useUiStore } from "../store/uiStore";
 import type { ContentItem } from "../types";
 
@@ -19,25 +19,32 @@ export function DetailPage({ type }: { type: "movie" | "anime" }) {
   const startRoom = useStartRoom();
   const pushToast = useUiStore((state) => state.pushToast);
   const [startOpen, setStartOpen] = useState(false);
-  const movieRows = useQuery({ queryKey: ["movieRows"], queryFn: getMovieRows, enabled: type === "movie" });
-  const animeRows = useQuery({ queryKey: ["animeRows"], queryFn: getAnimeRows, enabled: type === "anime" });
 
-  const remoteItems: ContentItem[] =
-    type === "movie" && movieRows.data
-      ? [...movieRows.data.trending, ...movieRows.data.popular, ...movieRows.data.topRated, ...movieRows.data.upcoming]
-      : type === "anime" && animeRows.data
-        ? [...animeRows.data.top, ...animeRows.data.seasonal, ...animeRows.data.airing]
-        : [];
-
-  const item = [...remoteItems, ...allSeeds].find((content) => content.id === id && content.type === type);
+  const { data: item, isLoading } = useQuery({
+    queryKey: ["contentItem", type, id],
+    queryFn: () => getContentItem(id!, type),
+    enabled: !!id
+  });
 
   if (!id) return <Navigate to={`/${type === "movie" ? "movies" : "anime"}`} replace />;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <img 
+          src="/logo.png" 
+          alt="Loading..." 
+          className="h-12 w-auto object-contain animate-rotate-logo opacity-60" 
+        />
+      </div>
+    );
+  }
 
   if (!item) {
     return (
       <div className="glass rounded-lg p-8">
-        <h1 className="font-display text-3xl font-black">Still loading this title</h1>
-        <p className="mt-2 text-muted">If it does not appear, return to the catalog and open another title.</p>
+        <h1 className="font-display text-3xl font-black">Title not found</h1>
+        <p className="mt-2 text-muted">Return to the catalog and search for other trending synchronized movies or series.</p>
       </div>
     );
   }
