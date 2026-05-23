@@ -38,7 +38,7 @@ export function useUISound() {
         const gainNode = originalCreateGain();
         
         const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
-        const volScale = isMobileDevice ? 0.25 : 1.0;
+        const volScale = isMobileDevice ? 0.85 : 1.0;
 
         const originalSetValueAtTime = gainNode.gain.setValueAtTime.bind(gainNode.gain);
         gainNode.gain.setValueAtTime = (value: number, time: number) => {

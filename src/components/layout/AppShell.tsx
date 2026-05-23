@@ -66,6 +66,7 @@ export function AppShell() {
   const location = useLocation();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [isMobileProfileOpen, setIsMobileProfileOpen] = useState(false);
+  const isMobileDevice = typeof navigator !== "undefined" && (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024);
 
   const handleLinkClick = () => {
     if (sidebarOpen) {
@@ -315,9 +316,9 @@ export function AppShell() {
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
+            initial={{ opacity: 0, y: 12, filter: isMobileDevice ? "none" : "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "none" }}
+            exit={{ opacity: 0, y: -8, filter: isMobileDevice ? "none" : "blur(4px)" }}
             transition={{ duration: 0.28, ease: "easeInOut" }}
           >
             <Suspense fallback={
