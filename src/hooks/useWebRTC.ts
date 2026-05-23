@@ -148,8 +148,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
                 if (!params.encodings) {
                   params.encodings = [{}];
                 }
-                const ourParticipant = participantsRef.current.find(p => p.uid === uid);
-                const myPlan = ourParticipant?.subscriptionPlan || "free";
+                const hostParticipant = participantsRef.current.find(p => p.isHost);
+                const myPlan = hostParticipant?.subscriptionPlan || "free";
                 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
                 
                 let maxBitrate = 800000;
@@ -194,8 +194,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
                 if (!params.encodings) {
                   params.encodings = [{}];
                 }
-                const ourParticipant = participantsRef.current.find(p => p.uid === uid);
-                const myPlan = ourParticipant?.subscriptionPlan || "free";
+                const hostParticipant = participantsRef.current.find(p => p.isHost);
+                const myPlan = hostParticipant?.subscriptionPlan || "free";
                 const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
                 
                 let maxBitrate = 300000; // Free user default
@@ -412,8 +412,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     (stream: MediaStream, plan?: string) => {
       localStreams.current = [...localStreams.current.filter((item) => item.id !== stream.id), stream];
       
-      const ourParticipant = participantsRef.current.find(p => p.uid === uid);
-      const myPlan = plan || ourParticipant?.subscriptionPlan || "free";
+      const hostParticipant = participantsRef.current.find(p => p.isHost);
+      const myPlan = plan || hostParticipant?.subscriptionPlan || "free";
 
       Object.values(peers.current).forEach(async (peer) => {
         const senders = peer.getSenders();
@@ -768,7 +768,10 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     const ourParticipant = participantsRef.current.find((p) => p.uid === uid);
     const connectionQuality = ourParticipant?.connectionQuality || "excellent";
 
-    console.log(`[WebRTC] Starting camera. Plan: ${plan || "free"}, connectionQuality: ${connectionQuality}`);
+    const hostParticipant = participantsRef.current.find((p) => p.isHost);
+    const hostPlan = plan || hostParticipant?.subscriptionPlan || "free";
+
+    console.log(`[WebRTC] Starting camera. Plan: ${hostPlan}, connectionQuality: ${connectionQuality}`);
     
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
     let videoConstraints: MediaTrackConstraints;
@@ -782,8 +785,15 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
           frameRate: { ideal: 20, max: 24 }
         };
       } else {
-        if (plan === "premium" || plan === "standard") {
-          console.log("[WebRTC] Mobile with stable connection and premium/standard plan: scaling up to 720p constraints");
+        if (hostPlan === "premium") {
+          console.log("[WebRTC] Mobile with stable connection and premium plan: scaling up to 1080p constraints");
+          videoConstraints = {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 30, max: 30 }
+          };
+        } else if (hostPlan === "standard") {
+          console.log("[WebRTC] Mobile with stable connection and standard plan: scaling up to 720p constraints");
           videoConstraints = {
             width: { ideal: 1280 },
             height: { ideal: 720 },
@@ -800,13 +810,13 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       }
     } else {
       // Desktop clients
-      if (plan === "premium") {
+      if (hostPlan === "premium") {
         videoConstraints = {
           width: { ideal: 1920 },
           height: { ideal: 1080 },
           frameRate: { ideal: 30, max: 60 }
         };
-      } else if (plan === "standard") {
+      } else if (hostPlan === "standard") {
         videoConstraints = {
           width: { ideal: 1280 },
           height: { ideal: 720 },
@@ -850,7 +860,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     cameraStreamRef.current = stream;
     setCameraStream(stream);
 
-    addLocalStream(stream, plan);
+    addLocalStream(stream, hostPlan);
     return stream;
   }, [addLocalStream, uid]);
 
@@ -884,24 +894,43 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     
-    console.log(`[WebRTC] Starting screen share with mode: ${mode}, plan tier: ${plan || "free"}, isMobile: ${isMobileDevice}`);
+    const hostParticipant = participantsRef.current.find((p) => p.isHost);
+    const hostPlan = plan || hostParticipant?.subscriptionPlan || "free";
+
+    console.log(`[WebRTC] Starting screen share with mode: ${mode}, plan tier: ${hostPlan}, isMobile: ${isMobileDevice}`);
     
     let videoConstraints: MediaTrackConstraints;
     if (isMobileDevice) {
-      // Mobile screen shares are optimized for CPU, bandwidth, and battery: ideal 480p, capped at 720p, frameRate 20-24
-      videoConstraints = {
-        width: { ideal: 854, max: 1280 },
-        height: { ideal: 480, max: 720 },
-        frameRate: { ideal: 20, max: 24 }
-      };
-    } else if (plan === "premium") {
+      if (hostPlan === "premium") {
+        console.log("[WebRTC] Mobile with premium plan: screenshare set to 1080p");
+        videoConstraints = {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30, max: 30 }
+        };
+      } else if (hostPlan === "standard") {
+        console.log("[WebRTC] Mobile with standard plan: screenshare set to 720p");
+        videoConstraints = {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 24, max: 30 }
+        };
+      } else {
+        console.log("[WebRTC] Mobile with free plan: screenshare capped at 480p");
+        videoConstraints = {
+          width: { ideal: 854 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 15, max: 24 }
+        };
+      }
+    } else if (hostPlan === "premium") {
       videoConstraints = {
         displaySurface: mode === "entire-screen" ? "monitor" : "window",
         width: { ideal: 1920 },
         height: { ideal: 1080 },
         frameRate: { ideal: 30, max: 60 }
       };
-    } else if (plan === "standard") {
+    } else if (hostPlan === "standard") {
       videoConstraints = {
         displaySurface: mode === "entire-screen" ? "monitor" : "window",
         width: { ideal: 1280 },
@@ -985,7 +1014,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       });
     }
 
-    addLocalStream(stream);
+    addLocalStream(stream, hostPlan);
     return stream;
   }, [addLocalStream, stopScreenShare]);
 
@@ -1207,15 +1236,27 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       }
     });
 
-    // Clean up corresponding remote streams
+    // Clean up corresponding remote streams, keeping only active streams and pruning ended tracks
     setRemoteStreams((current) =>
-      current.filter(
-        (item) =>
-          item.uid &&
-          item.uid !== "undefined" &&
-          currentRemoteUids.has(item.uid) &&
-          peerJoinedAt.current[item.uid] !== undefined
-      )
+      current
+        .filter(
+          (item) =>
+            item.uid &&
+            item.uid !== "undefined" &&
+            currentRemoteUids.has(item.uid) &&
+            peerJoinedAt.current[item.uid] !== undefined
+        )
+        .map((item) => {
+          const liveTracks = item.stream.getTracks().filter((t) => t.readyState === "live");
+          if (liveTracks.length === item.stream.getTracks().length) {
+            return item;
+          }
+          return {
+            ...item,
+            stream: new MediaStream(liveTracks)
+          };
+        })
+        .filter((item) => item.stream.getTracks().length > 0)
     );
 
     // Track the active peer joinedAt timestamps

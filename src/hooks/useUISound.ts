@@ -26,37 +26,74 @@ export type UISoundType =
 let globalAudioCtx: AudioContext | null = null;
 let lastSoundPlayedTime = 0;
 
+function initAudioContext(AudioCtxClass: any): AudioContext {
+  const ctx = new AudioCtxClass();
+
+  // Intercept and scale gain values dynamically on mobile viewports to make sound effects soft and quiet
+  const originalCreateGain = ctx.createGain.bind(ctx);
+  ctx.createGain = () => {
+    const gainNode = originalCreateGain();
+    
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+    const volScale = isMobileDevice ? 0.85 : 1.0;
+
+    const originalSetValueAtTime = gainNode.gain.setValueAtTime.bind(gainNode.gain);
+    gainNode.gain.setValueAtTime = (value: number, time: number) => {
+      return originalSetValueAtTime(value * volScale, time);
+    };
+
+    const originalLinearRampToValueAtTime = gainNode.gain.linearRampToValueAtTime.bind(gainNode.gain);
+    gainNode.gain.linearRampToValueAtTime = (value: number, time: number) => {
+      return originalLinearRampToValueAtTime(value * volScale, time);
+    };
+
+    const originalExponentialRampToValueAtTime = gainNode.gain.exponentialRampToValueAtTime.bind(gainNode.gain);
+    gainNode.gain.exponentialRampToValueAtTime = (value: number, time: number) => {
+      return originalExponentialRampToValueAtTime(value * volScale, time);
+    };
+
+    return gainNode;
+  };
+
+  return ctx;
+}
+
+// Enable automatic mobile user-gesture unlock on first click/touch
+if (typeof window !== "undefined") {
+  const unlockAudio = () => {
+    const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!globalAudioCtx && AudioCtxClass) {
+      try {
+        globalAudioCtx = initAudioContext(AudioCtxClass);
+        console.log("[useUISound] AudioContext pre-initialized via user gesture.");
+      } catch (e) {
+        console.warn("Failed to pre-initialize AudioContext:", e);
+      }
+    }
+    if (globalAudioCtx && globalAudioCtx.state === "suspended") {
+      globalAudioCtx.resume().then(() => {
+        console.log("[useUISound] AudioContext successfully unlocked on mobile via user gesture!");
+        cleanup();
+      }).catch((err) => console.warn("[useUISound] Failed to unlock AudioContext:", err));
+    } else if (globalAudioCtx) {
+      cleanup();
+    }
+  };
+
+  const cleanup = () => {
+    window.removeEventListener("click", unlockAudio);
+    window.removeEventListener("touchstart", unlockAudio);
+  };
+
+  window.addEventListener("click", unlockAudio, { passive: true });
+  window.addEventListener("touchstart", unlockAudio, { passive: true });
+}
+
 export function useUISound() {
   const getAudioContext = (): AudioContext => {
     if (!globalAudioCtx) {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      globalAudioCtx = new AudioCtxClass();
-
-      // Intercept and scale gain values dynamically on mobile viewports to make sound effects soft and quiet
-      const originalCreateGain = globalAudioCtx.createGain.bind(globalAudioCtx);
-      globalAudioCtx.createGain = () => {
-        const gainNode = originalCreateGain();
-        
-        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
-        const volScale = isMobileDevice ? 0.85 : 1.0;
-
-        const originalSetValueAtTime = gainNode.gain.setValueAtTime.bind(gainNode.gain);
-        gainNode.gain.setValueAtTime = (value: number, time: number) => {
-          return originalSetValueAtTime(value * volScale, time);
-        };
-
-        const originalLinearRampToValueAtTime = gainNode.gain.linearRampToValueAtTime.bind(gainNode.gain);
-        gainNode.gain.linearRampToValueAtTime = (value: number, time: number) => {
-          return originalLinearRampToValueAtTime(value * volScale, time);
-        };
-
-        const originalExponentialRampToValueAtTime = gainNode.gain.exponentialRampToValueAtTime.bind(gainNode.gain);
-        gainNode.gain.exponentialRampToValueAtTime = (value: number, time: number) => {
-          return originalExponentialRampToValueAtTime(value * volScale, time);
-        };
-
-        return gainNode;
-      };
+      globalAudioCtx = initAudioContext(AudioCtxClass);
     }
     if (globalAudioCtx.state === "suspended") {
       globalAudioCtx.resume().catch(() => {});

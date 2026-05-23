@@ -241,8 +241,8 @@ export function BillingPage() {
 
             <div className="mt-6">
               {activePlan === "free" ? (
-                <Button className="w-full" disabled variant="secondary">
-                  Current Plan
+                <Button className="w-full bg-white/10 border-white/10 text-neutral-400 cursor-not-allowed" disabled>
+                  You already have
                 </Button>
               ) : isPremiumEmail ? (
                 <Button className="w-full" disabled variant="ghost">
@@ -301,8 +301,8 @@ export function BillingPage() {
 
             <div className="mt-6">
               {activePlan === "standard" ? (
-                <Button className="w-full" disabled variant="secondary">
-                  Current Plan
+                <Button className="w-full bg-white/10 border-white/10 text-neutral-400 cursor-not-allowed" disabled>
+                  You already have
                 </Button>
               ) : isPremiumEmail ? (
                 <Button className="w-full" disabled variant="ghost">
@@ -372,8 +372,8 @@ export function BillingPage() {
 
             <div className="mt-6">
               {activePlan === "premium" ? (
-                <Button className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 border-none text-white shadow-glow" disabled>
-                  Current Plan
+                <Button className="w-full bg-white/10 border-white/10 text-neutral-400 cursor-not-allowed" disabled>
+                  You already have
                 </Button>
               ) : (
                 <Button className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 border-none text-white hover:brightness-110 active:brightness-95 transition shadow-glow" onClick={() => handleActivate("premium")}>

@@ -14,8 +14,21 @@ export function StreamVideo({ stream, muted = false, volume = 1.0, className = "
     const video = videoRef.current;
     if (!video || !stream) return;
 
-    // Bind the media stream directly to the video element
-    video.srcObject = stream;
+    // Only assign srcObject if the underlying tracks have actually changed, to prevent black screen / frame freezing on track changes
+    const currentStream = video.srcObject as MediaStream | null;
+    let isSame = false;
+    if (currentStream && stream) {
+      const currentTracks = currentStream.getTracks();
+      const newTracks = stream.getTracks();
+      if (currentTracks.length === newTracks.length) {
+        isSame = currentTracks.every((track, i) => track.id === newTracks[i]?.id);
+      }
+    }
+
+    if (!isSame) {
+      console.log("[Video] Re-binding srcObject to stream", stream.id);
+      video.srcObject = stream;
+    }
 
     const attemptPlay = () => {
       if (video.paused) {

@@ -53,9 +53,15 @@ export function PricingPage() {
                 </p>
               ))}
             </div>
-            <Button className="mt-6 w-full" onClick={() => activate(key as "standard" | "premium")}>
-              Activate {plan.name}
-            </Button>
+            {profile?.subscriptionPlan === key ? (
+              <Button className="mt-6 w-full bg-white/10 border-white/10 text-neutral-400 cursor-not-allowed" disabled>
+                You already have
+              </Button>
+            ) : (
+              <Button className="mt-6 w-full" onClick={() => activate(key as "standard" | "premium")}>
+                Activate {plan.name}
+              </Button>
+            )}
           </article>
         ))}
       </div>

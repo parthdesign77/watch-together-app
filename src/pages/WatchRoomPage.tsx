@@ -808,7 +808,8 @@ export function WatchRoomPage() {
 
   async function shareScreen(mode: "entire-screen" | "window") {
     try {
-      const stream = await webRTC.startScreenShare(mode, profile?.subscriptionPlan);
+      const hostPlan = room?.participants?.[room.hostId]?.subscriptionPlan || "free";
+      const stream = await webRTC.startScreenShare(mode, hostPlan);
       const updates: any = {
         isScreenSharing: true,
         screenShareHost: currentProfile.uid,
@@ -853,7 +854,8 @@ export function WatchRoomPage() {
         return;
       }
 
-      const stream = await webRTC.startCamera(profile?.subscriptionPlan);
+      const hostPlan = room?.participants?.[room.hostId]?.subscriptionPlan || "free";
+      const stream = await webRTC.startCamera(hostPlan);
       await updateRoomState(currentRoom.id, {
         [`participants.${currentProfile.uid}.isCameraOn`]: true,
         [`participants.${currentProfile.uid}.cameraStreamId`]: stream.id
