@@ -1,0 +1,31 @@
+User-agent: *
+Allow: /$
+Allow: /login$
+Allow: /terms$
+Allow: /privacy$
+Allow: /cookies$
+
+# Disallow dynamic, private, or authentication-gated areas
+Disallow: /dashboard
+Disallow: /room/
+Disallow: /screen-share/
+Disallow: /profile
+Disallow: /settings
+Disallow: /audio-settings
+Disallow: /streaming-settings
+Disallow: /pricing
+Disallow: /billing
+Disallow: /subscription
+Disallow: /payment-success
+Disallow: /payment-failed
+Disallow: /continue-watching
+Disallow: /search
+Disallow: /admin
+Disallow: /room-expired
+Disallow: /404
+
+# Host
+Host: https://watch-together7.vercel.app
+
+# Sitemap
+Sitemap: https://watch-together7.vercel.app/sitemap.xml
