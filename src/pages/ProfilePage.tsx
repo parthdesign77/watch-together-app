@@ -1,4 +1,4 @@
-import { Camera, Crown, Mail, User, Edit2, Check, X, Sparkles, Shield, Compass, Heart, Loader2 } from "lucide-react";
+import { Camera, Crown, Mail, User, Edit2, Check, X, Sparkles, Shield, Compass, Heart, Loader2, Calendar } from "lucide-react";
 import { Avatar } from "../components/ui/Avatar";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -181,8 +181,8 @@ export function ProfilePage() {
               className="flex flex-col gap-6 md:flex-row md:items-center"
             >
               <div className="relative group">
-                <div className="border-4 border-white/10 ring-4 ring-premium/20 group-hover:scale-105 transition-all duration-300 shadow-2xl rounded-full overflow-hidden animate-fade-in">
-                  <Avatar user={profile} size="lg" />
+                <div className="border-4 border-white/10 ring-4 ring-premium/20 group-hover:scale-105 transition-all duration-300 shadow-2xl rounded-full overflow-hidden animate-fade-in flex items-center justify-center h-24 w-24 sm:h-28 sm:w-28 bg-[#111111]">
+                  <Avatar user={profile} size="xl" />
                 </div>
                 {profile?.subscriptionPlan === "premium" && (
                   <div className="absolute -bottom-1 -right-1 bg-gradient-to-tr from-amber-500 to-yellow-300 p-1.5 rounded-full border-2 border-panel shadow-lg">
@@ -225,6 +225,12 @@ export function ProfilePage() {
                     <Mail className="h-4 w-4 text-neutral-500" />
                     {profile?.email}
                   </p>
+                  {profile?.createdAt && (
+                    <p className="flex items-center gap-2 text-sm text-neutral-400">
+                      <Calendar className="h-4 w-4 text-neutral-500" />
+                      <span>Joined {new Date(profile.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    </p>
+                  )}
                   {profile?.bio && (
                     <p className="text-sm italic text-neutral-300 max-w-xl pl-3 border-l-2 border-[#ff3d47]/40 py-0.5 bg-white/2 rounded-r-md pr-2">
                       "{profile.bio}"
@@ -279,7 +285,7 @@ export function ProfilePage() {
                         {avatar ? (
                           <img src={avatar} alt="Preview" className="h-full w-full object-cover" />
                         ) : (
-                          <Avatar user={profile} size="lg" />
+                          <Avatar user={profile} size="xl" />
                         )}
                       </div>
                       <input 
