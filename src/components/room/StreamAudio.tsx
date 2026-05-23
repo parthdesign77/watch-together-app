@@ -19,7 +19,7 @@ export function StreamAudio({ stream, uid }: { stream: MediaStream | null; uid?:
       const currentTracks = currentStream.getTracks();
       const newTracks = stream.getTracks();
       if (currentTracks.length === newTracks.length) {
-        isSame = currentTracks.every((track, i) => track.id === newTracks[i]?.id);
+        isSame = currentTracks.every((track, i) => track === newTracks[i]);
       }
     }
 

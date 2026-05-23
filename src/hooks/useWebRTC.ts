@@ -1190,7 +1190,7 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
   // Synchronize peer connections and remote streams with current participants
   const participantsKey = participants
     .filter((p) => p.uid && p.uid !== "undefined")
-    .map((p) => `${p.uid}:${p.joinedAt}:${p.isCameraOn ? 1 : 0}:${p.isMuted ? 1 : 0}:${p.isScreenSharing ? 1 : 0}:${p.voiceStreamId || ""}:${p.cameraStreamId || ""}:${p.screenStreamId || ""}`)
+    .map((p) => `${p.uid}:${p.joinedAt}`)
     .sort()
     .join(",");
 
@@ -1236,27 +1236,15 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       }
     });
 
-    // Clean up corresponding remote streams, keeping only active streams and pruning ended tracks
+    // Clean up corresponding remote streams for participants who left the session
     setRemoteStreams((current) =>
-      current
-        .filter(
-          (item) =>
-            item.uid &&
-            item.uid !== "undefined" &&
-            currentRemoteUids.has(item.uid) &&
-            peerJoinedAt.current[item.uid] !== undefined
-        )
-        .map((item) => {
-          const liveTracks = item.stream.getTracks().filter((t) => t.readyState === "live");
-          if (liveTracks.length === item.stream.getTracks().length) {
-            return item;
-          }
-          return {
-            ...item,
-            stream: new MediaStream(liveTracks)
-          };
-        })
-        .filter((item) => item.stream.getTracks().length > 0)
+      current.filter(
+        (item) =>
+          item.uid &&
+          item.uid !== "undefined" &&
+          currentRemoteUids.has(item.uid) &&
+          peerJoinedAt.current[item.uid] !== undefined
+      )
     );
 
     // Track the active peer joinedAt timestamps
