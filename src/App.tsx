@@ -59,9 +59,16 @@ export function App() {
     if (loading) return;
 
     const hasVisited = localStorage.getItem("hasVisitedBefore");
-    const isAuthRoute = location.pathname === "/login" || location.pathname.startsWith("/oauth");
+    const isPublicRoute = 
+      location.pathname === "/" ||
+      location.pathname === "/login" ||
+      location.pathname === "/terms" ||
+      location.pathname === "/privacy" ||
+      location.pathname === "/cookies" ||
+      location.pathname === "/404" ||
+      location.pathname.startsWith("/oauth");
 
-    if (!hasVisited && !isAuthRoute && !user) {
+    if (!hasVisited && !isPublicRoute && !user) {
       localStorage.setItem("hasVisitedBefore", "true");
       navigate("/login", { replace: true, state: { from: location } });
     } else if (!hasVisited && user) {

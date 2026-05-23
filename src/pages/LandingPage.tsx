@@ -48,6 +48,7 @@ export function LandingPage() {
       </header>
 
       <main className="w-full px-6 md:px-12 pb-20 pt-20">
+        <h1 className="sr-only">Watch Together - Watch Videos Together Online in Perfect Sync</h1>
         <HeroShowcase item={movieSeeds[0]} />
 
         <section id="features" className="grid gap-4 py-16 md:grid-cols-2 lg:grid-cols-4">
