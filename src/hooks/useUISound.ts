@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useUiStore } from "../store/uiStore";
 
 export type UISoundType =
   | "hover"
@@ -29,31 +30,30 @@ let lastSoundPlayedTime = 0;
 function initAudioContext(AudioCtxClass: any): AudioContext {
   const ctx = new AudioCtxClass();
 
-  // Intercept and scale gain values dynamically on mobile viewports to make sound effects soft and quiet
-  const originalCreateGain = ctx.createGain.bind(ctx);
-  ctx.createGain = () => {
-    const gainNode = originalCreateGain();
-    
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
-    const volScale = isMobileDevice ? 0.85 : 1.0;
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 1024);
+  const volScale = isMobileDevice ? 0.65 : 1.0;
 
-    const originalSetValueAtTime = gainNode.gain.setValueAtTime.bind(gainNode.gain);
-    gainNode.gain.setValueAtTime = (value: number, time: number) => {
-      return originalSetValueAtTime(value * volScale, time);
+  // Single master gain node to regulate all system sound effects comfort level on mobile viewports
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(volScale, ctx.currentTime);
+  masterGain.connect(ctx.destination);
+
+  const wrapNode = (node: any) => {
+    const originalConnect = node.connect.bind(node);
+    node.connect = (dest: any, output?: number, input?: number) => {
+      if (dest === ctx.destination) {
+        return originalConnect(masterGain, output, input);
+      }
+      return originalConnect(dest, output, input);
     };
-
-    const originalLinearRampToValueAtTime = gainNode.gain.linearRampToValueAtTime.bind(gainNode.gain);
-    gainNode.gain.linearRampToValueAtTime = (value: number, time: number) => {
-      return originalLinearRampToValueAtTime(value * volScale, time);
-    };
-
-    const originalExponentialRampToValueAtTime = gainNode.gain.exponentialRampToValueAtTime.bind(gainNode.gain);
-    gainNode.gain.exponentialRampToValueAtTime = (value: number, time: number) => {
-      return originalExponentialRampToValueAtTime(value * volScale, time);
-    };
-
-    return gainNode;
+    return node;
   };
+
+  const originalCreateGain = ctx.createGain.bind(ctx);
+  ctx.createGain = () => wrapNode(originalCreateGain()) as GainNode;
+
+  const originalCreateBiquadFilter = ctx.createBiquadFilter.bind(ctx);
+  ctx.createBiquadFilter = () => wrapNode(originalCreateBiquadFilter()) as BiquadFilterNode;
 
   return ctx;
 }
@@ -104,7 +104,7 @@ export function useUISound() {
   const play = useCallback((type: UISoundType) => {
     try {
       // Mute system sounds if deafened, EXCEPT for the toggle actions
-      const isDeafened = localStorage.getItem("deafened") === "true";
+      const isDeafened = useUiStore.getState().deafened;
       if (isDeafened && type !== "deafen" && type !== "undeafen") {
         return;
       }
