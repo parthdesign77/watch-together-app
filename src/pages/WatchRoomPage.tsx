@@ -380,7 +380,8 @@ export function WatchRoomPage() {
         feeds.push({
           id: `${item.uid}-${item.id}`,
           name: `${room?.participants?.[item.uid]?.name || "Guest"} camera`,
-          stream: item.stream
+          stream: item.stream,
+          muted: true
         });
       });
 
@@ -648,12 +649,7 @@ export function WatchRoomPage() {
     prevMessageCountRef.current = messages.length;
   }, [messages, cinemaMode, profile?.uid]);
 
-  // Auto-enable camera in camera-first rooms (no movie URL loaded initially)
-  useEffect(() => {
-    if (joined && room && !room.videoUrl && !webRTC.cameraStream) {
-      toggleCamera().catch(() => undefined);
-    }
-  }, [joined, room?.videoUrl]);
+
 
   // Auto-sync Firestore when local screen sharing stops natively (e.g. via browser UI)
   useEffect(() => {

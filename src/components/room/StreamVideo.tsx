@@ -11,17 +11,38 @@ export function StreamVideo({ stream, muted = false, volume = 1.0, className = "
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    if (videoRef.current) {
-      // Bind the media stream directly to the video element
-      videoRef.current.srcObject = stream;
-      
-      if (stream) {
-        // Explicitly trigger play to kick off rendering safely
-        videoRef.current.play().catch((err) => {
-          console.warn("[Video] AutoPlay failed or was interrupted:", err);
+    const video = videoRef.current;
+    if (!video || !stream) return;
+
+    // Bind the media stream directly to the video element
+    video.srcObject = stream;
+
+    const attemptPlay = () => {
+      if (video.paused) {
+        video.play().then(() => {
+          console.log("[Video] Playback successfully started.");
+          cleanupListeners();
+        }).catch((err) => {
+          console.warn("[Video] Play attempt failed or was interrupted:", err);
         });
       }
-    }
+    };
+
+    const cleanupListeners = () => {
+      window.removeEventListener("click", attemptPlay);
+      window.removeEventListener("touchstart", attemptPlay);
+    };
+
+    // First attempt immediately
+    attemptPlay();
+
+    // Register fallback listeners for user-gesture activation (mobile autoplay bypass)
+    window.addEventListener("click", attemptPlay);
+    window.addEventListener("touchstart", attemptPlay);
+
+    return () => {
+      cleanupListeners();
+    };
   }, [stream]);
 
   useEffect(() => {
