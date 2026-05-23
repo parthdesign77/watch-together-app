@@ -1071,7 +1071,11 @@ export function WatchRoomPage() {
         <div
           ref={mediaContainerRef}
           className={`gpu-accelerated flex-1 min-h-0 flex flex-col gap-4 relative transition-all duration-500 ${
-            isFullscreen ? "p-5 bg-[#090909] w-full h-full justify-between" : ""
+            isMobile && screenShareActive
+              ? "fixed inset-0 z-30 bg-[#090909] p-3 pb-24 flex flex-col justify-between"
+              : isFullscreen
+              ? "p-5 bg-[#090909] w-full h-full justify-between"
+              : ""
           }`}
         >
           

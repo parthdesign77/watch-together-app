@@ -124,7 +124,11 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
       if (peers.current[remoteUid]) return peers.current[remoteUid];
 
       console.log(`[WebRTC] Creating PeerConnection for remote user: ${remoteUid}`);
-      const peer = new RTCPeerConnection({ iceServers: turnServers });
+      const peer = new RTCPeerConnection({
+        iceServers: turnServers,
+        bundlePolicy: "max-bundle",
+        rtcpMuxPolicy: "require"
+      });
       peers.current[remoteUid] = peer;
       negotiationState.current[remoteUid] = { makingOffer: false, ignoreOffer: false };
       negotiationPending.current[remoteUid] = false;
@@ -158,6 +162,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
                 }
                 
                 params.encodings[0].maxBitrate = maxBitrate;
+                params.encodings[0].priority = "high";
+                params.encodings[0].networkPriority = "high";
                 
                 // Mobile-specific encoder scaling and framerate optimizations
                 if (isMobileDevice) {
@@ -439,6 +445,8 @@ export function useWebRTC(roomId: string | undefined, uid: string | undefined, p
               }
               
               params.encodings[0].maxBitrate = maxBitrate;
+              params.encodings[0].priority = "high";
+              params.encodings[0].networkPriority = "high";
               
               // Mobile-specific encoder scaling and framerate optimizations
               if (isMobileDevice) {
